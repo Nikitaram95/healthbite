@@ -1,14 +1,15 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export type Post = {
-  postid:     string;
-  title:      string;
+  postid:      string;
+  title:       string;
   description: string;
-  mediaurl:   string;
-  type:       string;
-  categoryid: string;
-  author:     string;
-  createdat:  string; // ISO строка из YDB Timestamp
+  mediaurl:    string;
+  type:        string;
+  categoryid:  string;
+  author:      string;
+  createdat:   string;
+  likes:       number;
 };
 
 export type Comment = {
@@ -16,7 +17,7 @@ export type Comment = {
   postid:    string;
   author:    string;
   text:      string;
-  createdat: string; // ISO строка
+  createdat: string;
 };
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -48,16 +49,23 @@ export async function addComment(postid: string, author: string, text: string): 
   });
 }
 
+export async function likePost(postid: string): Promise<{ likes: number }> {
+  return apiFetch<{ likes: number }>(`${API_URL}/posts/${postid}/like`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export async function createPost(data: {
   title: string;
   description: string;
   categoryid: string;
   author?: string;
-  mediaurl?: string;
-  type?: string;
   imageBase64?: string;
   imageName?: string;
   imageMime?: string;
+  videoBase64?: string;
+  videoName?: string;
 }): Promise<Post> {
   return apiFetch<Post>(`${API_URL}/upload`, {
     method: 'POST',

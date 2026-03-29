@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { listPosts, listComments, addComment, Post, Comment } from '../../lib/api';
+import { listPosts, listComments, addComment, likePost, Post, Comment } from '../../lib/api';
 
 export default function PostPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,19 +10,41 @@ export default function PostPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(0);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
+
     listPosts()
       .then(posts => {
         const found = posts.find(p => p.postid === id);
-        setPost(found ?? null);
+        if (found) {
+          setPost(found);
+          setLikes(found.likes ?? 0);
+        }
       })
       .finally(() => setLoading(false));
+
     listComments(id).then(setComments).catch(() => {});
+
+    const savedLiked = localStorage.getItem(`liked_${id}`);
+    setLiked(savedLiked === 'true');
   }, [id]);
+
+  async function handleLike() {
+    if (liked || !id) return;
+    try {
+      const res = await likePost(id);
+      setLikes(res.likes);
+      setLiked(true);
+      localStorage.setItem(`liked_${id}`, 'true');
+    } catch {
+      alert('Не удалось поставить лайк');
+    }
+  }
 
   async function handleSend() {
     if (!commentText.trim() || !id) return;
@@ -41,7 +63,7 @@ export default function PostPage() {
   }
 
   const CATEGORY_NAMES: Record<string, string> = {
-    ai: 'Работа с ИИ',
+    ai:   'Работа с ИИ',
     food: 'Питание',
     mind: 'Мышление',
   };
@@ -94,7 +116,7 @@ export default function PostPage() {
         )}
 
         {/* ТЕКСТ ПОСТА */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 24 }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1, color: '#333' }}>ПОСТ</span>
             <span style={{ backgroundColor: '#e0f2f1', color: '#00897b', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
@@ -106,16 +128,42 @@ export default function PostPage() {
           <p style={{ fontSize: 15, lineHeight: 1.8, color: '#333', whiteSpace: 'pre-wrap' }}>{post.description}</p>
         </div>
 
+        {/* ЛАЙКИ */}
+        <div style={{
+          backgroundColor: '#fff',
+          borderRadius: 12,
+          padding: '14px 20px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+        }}>
+          <button
+            onClick={handleLike}
+            disabled={liked}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              backgroundColor: liked ? '#e0f2f1' : '#f5f5f5',
+              border: liked ? '1.5px solid #00897b' : '1.5px solid #e0e0e0',
+              borderRadius: 8, padding: '8px 20px',
+              cursor: liked ? 'default' : 'pointer',
+              fontSize: 20, color: liked ? '#00897b' : '#555',
+              fontWeight: 600, transition: 'all 0.15s',
+            }}
+          >
+            {liked ? '❤️' : '🤍'}
+            <span style={{ fontSize: 15 }}>{likes}</span>
+          </button>
+          <span style={{ fontSize: 13, color: '#aaa' }}>
+            {liked ? 'Вам понравилось' : 'Нравится? Поставь лайк!'}
+          </span>
+        </div>
+
         {/* КОММЕНТАРИИ */}
         <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>Комментарии {comments.length > 0 && `(${comments.length})`}</span>
-            <button
-              onClick={() => listComments(id).then(setComments)}
-              style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#555' }}
-            >
-              Обновить
-            </button>
+          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>
+            Комментарии {comments.length > 0 && `(${comments.length})`}
           </div>
 
           {comments.length === 0 ? (
@@ -142,7 +190,7 @@ export default function PostPage() {
             </div>
           )}
 
-          {/* ФОРМА КОММЕНТАРИЯ */}
+          {/* ФОРМА */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
               value={authorName}
@@ -164,7 +212,9 @@ export default function PostPage() {
                 style={{
                   backgroundColor: sending ? '#aaa' : '#00897b',
                   color: '#fff', border: 'none', borderRadius: 8,
-                  padding: '10px 18px', cursor: sending ? 'not-allowed' : 'pointer', fontSize: 16,
+                  padding: '10px 18px',
+                  cursor: sending ? 'not-allowed' : 'pointer',
+                  fontSize: 16,
                 }}
               >
                 ↵
@@ -172,6 +222,7 @@ export default function PostPage() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
