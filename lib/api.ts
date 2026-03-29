@@ -1,42 +1,49 @@
-// lib/api.ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export type Post = {
-  postid:     string;
-  title:      string;
+  postid: string;
+  title: string;
   description: string;
-  author?:    string;
+  mediaurl: string;
+  type: string;
   categoryid: string;
-  mediaurl?:  string;
-  createdat:  number | string;
+  author: string;
+  createdat: number;
 };
 
 export type Comment = {
-  postid:    string;
   commentid: string;
-  author:    string;
-  text:      string;
-  createdat: number | string;
+  postid: string;
+  author: string;
+  text: string;
+  createdat: number;
 };
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+export async function listPosts(category?: string): Promise<Post[]> {
+  const url = category && category !== 'all'
+    ? `${API_URL}/posts?category=${category}`
+    : `${API_URL}/posts`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Ошибка загрузки постов');
+  return res.json();
+}
 
-export async function listPosts(): Promise<Post[]> {
-  const res = await fetch(`${BASE}/posts`);
-  if (!res.ok) throw new Error(`listPosts: ${res.status}`);
+export async function getPost(id: string): Promise<Post> {
+  const res = await fetch(`${API_URL}/posts/${id}`);
+  if (!res.ok) throw new Error('Пост не найден');
   return res.json();
 }
 
 export async function listComments(postId: string): Promise<Comment[]> {
-  const res = await fetch(`${BASE}/comments?postId=${postId}`);
-  if (!res.ok) throw new Error(`listComments: ${res.status}`);
+  const res = await fetch(`${API_URL}/comments?postid=${postId}`);
+  if (!res.ok) return [];
   return res.json();
 }
 
 export async function addComment(postId: string, author: string, text: string): Promise<void> {
-  const res = await fetch(`${BASE}/comments`, {
+  await fetch(`${API_URL}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ postId, author, text }),
+    body: JSON.stringify({ action: 'comment', postid: postId, author, text }),
   });
-  if (!res.ok) throw new Error(`addComment: ${res.status}`);
 }
