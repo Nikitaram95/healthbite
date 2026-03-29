@@ -1,280 +1,201 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { listPosts, listComments, addComment } from './lib/api';
-import type { Post, Comment } from './lib/api';
+import { listPosts, createPost, Post } from './lib/api';
 
-type User = { phone: string };
-type CommentsMap = Record<string, Comment[]>;
+const CATEGORIES = ['Все', 'Работа с ИИ', 'Питание', 'Мышление'];
+const CATEGORY_IDS: Record<string, string> = {
+  'Работа с ИИ': 'ai',
+  'Питание': 'food',
+  'Мышление': 'mind',
+};
 
-const CATEGORIES = [
-  { id: 'all',  name: 'Все' },
-  { id: 'ai',   name: 'Работа с ИИ' },
-  { id: 'food', name: 'Питание' },
-  { id: 'mind', name: 'Мышление' },
-];
+export default function Home() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [category, setCategory] = useState('Все');
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    categoryid: 'ai',
+    mediaurl: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-export default function AppPage() {
-  const [user, setUser]           = useState<User | null>(null);
-  const [authStep, setAuthStep]   = useState<'phone' | 'code'>('phone');
-  const [phone, setPhone]         = useState('');
-  const [code, setCode]           = useState('');
-  const [authError, setAuthError] = useState('');
-
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [posts, setPosts]                   = useState<Post[]>([]);
-  const [loadingPosts, setLoadingPosts]     = useState(false);
-  const [postsError, setPostsError]         = useState('');
-
-  const [comments, setComments]               = useState<CommentsMap>({});
-  const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
-  const [newComment, setNewComment]           = useState<Record<string, string>>({});
-
-  // ── Авторизация ────────────────────────────────────────────────────────
-  const handlePhoneSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phone.trim()) return;
-    setAuthStep('code');
-    setAuthError('');
-  };
-
-  const handleCodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (code === '1234') {
-      setUser({ phone });
-      setAuthError('');
-    } else {
-      setAuthError('Неверный код. Попробуй 1234 🙂');
-    }
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setAuthStep('phone');
-    setPhone('');
-    setCode('');
-    setAuthError('');
-  };
-
-  // ── Загрузка постов ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!user) return;
-    setLoadingPosts(true);
-    setPostsError('');
+    listPosts().then(setPosts);
+  }, []);
 
-    listPosts()
-      .then((data) => {
-        const sorted = [...data].sort(
-          (a, b) => new Date(b.createdat).getTime() - new Date(a.createdat).getTime(),
-        );
-        setPosts(sorted);
-      })
-      .catch((err) => {
-        console.error(err);
-        setPostsError('Не удалось загрузить посты');
-      })
-      .finally(() => setLoadingPosts(false));
-  }, [user]);
+  const filtered = category === 'Все'
+    ? posts
+    : posts.filter(p => p.categoryid === CATEGORY_IDS[category]);
 
-  const visiblePosts = posts.filter(
-    (p) => activeCategory === 'all' || p.categoryid === activeCategory,
-  );
-
-  // ── Комментарии ───────────────────────────────────────────────────────
-  const loadCommentsForPost = async (postId: string) => {
-    if (comments[postId] !== undefined) return;
-    setCommentsLoading((prev) => ({ ...prev, [postId]: true }));
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
     try {
-      const data = await listComments(postId);
-      setComments((prev) => ({ ...prev, [postId]: data }));
+      await createPost({
+        title: form.title,
+        description: form.description,
+        categoryid: form.categoryid,
+        mediaurl: form.mediaurl,
+        type: 'post',
+        author: 'admin',
+      });
+      setForm({ title: '', description: '', categoryid: 'ai', mediaurl: '' });
+      setShowForm(false);
+      const updated = await listPosts();
+      setPosts(updated);
     } catch (err) {
-      console.error(err);
+      alert('Ошибка при создании поста');
     } finally {
-      setCommentsLoading((prev) => ({ ...prev, [postId]: false }));
+      setSubmitting(false);
     }
-  };
-
-  const handleAddComment = async (postId: string) => {
-    const text = newComment[postId]?.trim();
-    if (!user || !text) return;
-    try {
-      const created = await addComment(postId, user.phone, text);
-      setComments((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] || []), created],
-      }));
-      setNewComment((prev) => ({ ...prev, [postId]: '' }));
-    } catch (err) {
-      console.error(err);
-      alert('Не удалось отправить комментарий');
-    }
-  };
-
-  // ── Экран логина ──────────────────────────────────────────────────────
-  if (!user) {
-    return (
-      <main style={{ minHeight: '100vh', background: '#f5f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e2dc', padding: 32, width: '100%', maxWidth: 400 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24, color: '#28251d' }}>Вход в Healtbite</h1>
-
-          {authStep === 'phone' && (
-            <form onSubmit={handlePhoneSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label style={{ fontSize: 13, color: '#7a7974' }}>Номер телефона</label>
-              <input
-                type="tel"
-                placeholder="+7 900 000-00-00"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4d1ca', fontSize: 15, outline: 'none' }}
-              />
-              <button type="submit" style={{ background: '#01696f', color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontWeight: 600, cursor: 'pointer', fontSize: 15, marginTop: 4 }}>
-                Получить код (тест)
-              </button>
-            </form>
-          )}
-
-          {authStep === 'code' && (
-            <form onSubmit={handleCodeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ fontSize: 13, color: '#7a7974', margin: 0 }}>
-                Мы «отправили» код на {phone}. Для входа введи <strong>1234</strong>.
-              </p>
-              <label style={{ fontSize: 13, color: '#7a7974' }}>Код из SMS</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-                style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4d1ca', fontSize: 15, outline: 'none' }}
-              />
-              {authError && <p style={{ color: '#a12c7b', fontSize: 13, margin: 0 }}>{authError}</p>}
-              <button type="submit" style={{ background: '#01696f', color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontWeight: 600, cursor: 'pointer', fontSize: 15, marginTop: 4 }}>
-                Войти
-              </button>
-              <button type="button" onClick={() => { setAuthStep('phone'); setCode(''); setAuthError(''); }}
-                style={{ background: 'none', border: '1px solid #d4d1ca', borderRadius: 8, padding: '10px', cursor: 'pointer', fontSize: 14, color: '#7a7974' }}>
-                Изменить номер
-              </button>
-            </form>
-          )}
-        </div>
-      </main>
-    );
   }
 
-  // ── Основное приложение ───────────────────────────────────────────────
   return (
-    <main style={{ minHeight: '100vh', background: '#f5f4f0', fontFamily: 'sans-serif' }}>
-      {/* Шапка */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e5e2dc', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#01696f', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>Hb</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Healtbite</div>
-            <div style={{ fontSize: 11, color: '#7a7974' }}>здоровые привычки и ИИ‑поддержка</div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      {/* ШАПКА */}
+      <header style={{
+        backgroundColor: '#fff',
+        borderBottom: '1px solid #e0e0e0',
+        padding: '12px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Healtbite</div>
+          <div style={{ fontSize: 12, color: '#888' }}>здоровые привычки и ИИ-поддержка</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: '#7a7974' }}>{user.phone}</span>
-          <button onClick={handleLogout} style={{ border: '1px solid #d4d1ca', background: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: '#28251d' }}>
-            Выйти
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            style={{
+              backgroundColor: '#00897b',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 18px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            {showForm ? '✕ Закрыть' : '+ Новый пост'}
           </button>
         </div>
       </header>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 16px', display: 'flex', gap: 24 }}>
-        {/* Сайдбар */}
-        <aside style={{ width: 200, flexShrink: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#7a7974', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Категории</div>
-          {CATEGORIES.map((cat) => (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: 'none', marginBottom: 4, cursor: 'pointer', fontSize: 14, fontWeight: 500, background: activeCategory === cat.id ? '#01696f' : 'transparent', color: activeCategory === cat.id ? '#fff' : '#28251d' }}>
-              {cat.name}
+      {/* ФОРМА СОЗДАНИЯ ПОСТА */}
+      {showForm && (
+        <div style={{
+          backgroundColor: '#fff',
+          borderBottom: '1px solid #e0e0e0',
+          padding: '20px 24px',
+        }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 700, margin: '0 auto' }}>
+            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>Новый пост</div>
+            <input
+              placeholder="Заголовок"
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              required
+              style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #ccc', fontSize: 14 }}
+            />
+            <textarea
+              placeholder="Текст поста..."
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              required
+              rows={4}
+              style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #ccc', fontSize: 14, resize: 'vertical' }}
+            />
+            <input
+              placeholder="Ссылка на картинку (необязательно)"
+              value={form.mediaurl}
+              onChange={e => setForm({ ...form, mediaurl: e.target.value })}
+              style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #ccc', fontSize: 14 }}
+            />
+            <select
+              value={form.categoryid}
+              onChange={e => setForm({ ...form, categoryid: e.target.value })}
+              style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #ccc', fontSize: 14 }}
+            >
+              <option value="ai">Работа с ИИ</option>
+              <option value="food">Питание</option>
+              <option value="mind">Мышление</option>
+            </select>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                backgroundColor: '#00897b',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 20px',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+                alignSelf: 'flex-start',
+              }}
+            >
+              {submitting ? 'Публикую...' : 'Опубликовать'}
             </button>
+          </form>
+        </div>
+      )}
+
+      {/* ОСНОВНОЙ КОНТЕНТ */}
+      <div style={{ display: 'flex', flex: 1, maxWidth: 1100, margin: '0 auto', width: '100%', padding: '24px 16px', gap: 24 }}>
+        {/* КАТЕГОРИИ */}
+        <aside style={{ width: 180, flexShrink: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: '#888', marginBottom: 12, letterSpacing: 1 }}>КАТЕГОРИИ</div>
+          {CATEGORIES.map(cat => (
+            <div
+              key={cat}
+              onClick={() => setCategory(cat)}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                marginBottom: 4,
+                backgroundColor: category === cat ? '#00897b' : 'transparent',
+                color: category === cat ? '#fff' : '#333',
+                fontWeight: category === cat ? 600 : 400,
+              }}
+            >
+              {cat}
+            </div>
           ))}
         </aside>
 
-        {/* Лента */}
-        <section style={{ flex: 1 }}>
-          {loadingPosts && <p style={{ color: '#7a7974', padding: 24 }}>Загружаем посты…</p>}
-
-          {postsError && (
-            <div style={{ background: '#fde8f0', color: '#a12c7b', borderRadius: 8, padding: '14px 18px', fontSize: 14 }}>{postsError}</div>
+        {/* ПОСТЫ */}
+        <main style={{ flex: 1 }}>
+          {filtered.length === 0 && (
+            <div style={{ color: '#aaa', marginTop: 40, textAlign: 'center' }}>Постов пока нет</div>
           )}
-
-          {!loadingPosts && !postsError && visiblePosts.map((post) => (
-            <article key={post.postid} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e2dc', overflow: 'hidden', marginBottom: 16 }}>
-              {post.mediaurl && post.type === 'image' && (
-                <img src={post.mediaurl} alt={post.title} style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+          {filtered.map(post => (
+            <div key={post.postid} style={{ backgroundColor: '#fff', borderRadius: 12, marginBottom: 24, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+              {post.mediaurl && (
+                <img src={post.mediaurl} alt={post.title} style={{ width: '100%', maxHeight: 300, objectFit: 'cover' }} />
               )}
-              <div style={{ padding: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
-                  <div>
-                    <h2 style={{ fontWeight: 700, fontSize: 16, color: '#28251d', margin: 0, marginBottom: 4 }}>{post.title}</h2>
-                    <p style={{ fontSize: 12, color: '#bab9b4', margin: 0 }}>
-                      {post.author || 'Healtbite'} · {new Date(post.createdat).toLocaleString('ru-RU')}
-                    </p>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#01696f', background: '#cedcd8', borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                    {CATEGORIES.find((c) => c.id === post.categoryid)?.name ?? post.categoryid}
+              <div style={{ padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1 }}>ПОСТ</span>
+                  <span style={{ backgroundColor: '#e0f2f1', color: '#00897b', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                    {Object.entries(CATEGORY_IDS).find(([, v]) => v === post.categoryid)?.[0] ?? post.categoryid}
                   </span>
                 </div>
-
-                <p style={{ fontSize: 14, lineHeight: 1.65, color: '#28251d', margin: 0, marginBottom: 12 }}>{post.description}</p>
-
-                <Link href={`/post/${post.postid}`} style={{ fontSize: 13, color: '#01696f', textDecoration: 'none', fontWeight: 500 }}>
-                  Читать полностью →
-                </Link>
-
-                {/* Комментарии */}
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0ede8' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#28251d' }}>Комментарии</span>
-                    <button type="button" onClick={() => loadCommentsForPost(post.postid)}
-                      style={{ background: 'none', border: '1px solid #d4d1ca', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 12, color: '#7a7974' }}>
-                      Обновить
-                    </button>
-                  </div>
-
-                  {commentsLoading[post.postid] && <p style={{ fontSize: 13, color: '#7a7974' }}>Загружаем…</p>}
-
-                  {(comments[post.postid] || []).map((c) => (
-                    <div key={c.commentid} style={{ background: '#f9f8f5', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#28251d', marginBottom: 2 }}>{c.author}</div>
-                      <div style={{ fontSize: 13, color: '#7a7974' }}>{c.text}</div>
-                    </div>
-                  ))}
-
-                  {!commentsLoading[post.postid] && (!comments[post.postid] || comments[post.postid].length === 0) && (
-                    <p style={{ fontSize: 13, color: '#bab9b4' }}>Пока нет комментариев — будь первым.</p>
-                  )}
-
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <input
-                      type="text"
-                      placeholder="Добавить комментарий..."
-                      value={newComment[post.postid] || ''}
-                      onChange={(e) => setNewComment((prev) => ({ ...prev, [post.postid]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.postid)}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d4d1ca', fontSize: 13, outline: 'none' }}
-                    />
-                    <button onClick={() => handleAddComment(post.postid)}
-                      style={{ background: '#01696f', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                      ↩
-                    </button>
-                  </div>
-                </div>
+                <div style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>{post.author} · {post.createdat}</div>
+                <div style={{ fontSize: 15, marginBottom: 12 }}>{post.description?.slice(0, 120)}{(post.description?.length ?? 0) > 120 ? '...' : ''}</div>
+                <a href={`/post/${post.postid}`} style={{ color: '#00897b', fontSize: 14 }}>Читать полностью →</a>
               </div>
-            </article>
+            </div>
           ))}
-
-          {!loadingPosts && !postsError && visiblePosts.length === 0 && (
-            <p style={{ color: '#7a7974', padding: 24 }}>В этой категории пока нет постов.</p>
-          )}
-        </section>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
