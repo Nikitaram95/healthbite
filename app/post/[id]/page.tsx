@@ -2,27 +2,34 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getPost, listComments, addComment, Post, Comment } from '../../lib/api';
+import { listPosts, listComments, addComment, Post, Comment } from '../../lib/api';
 
 export default function PostPage() {
   const { id } = useParams<{ id: string }>();
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
+  const [authorName, setAuthorName] = useState('');
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    getPost(id).then(setPost).catch(() => setError(true));
+    listPosts()
+      .then(posts => {
+        const found = posts.find(p => p.postid === id);
+        setPost(found ?? null);
+      })
+      .finally(() => setLoading(false));
     listComments(id).then(setComments).catch(() => {});
   }, [id]);
 
   async function handleSend() {
     if (!commentText.trim() || !id) return;
     setSending(true);
+    const name = authorName.trim() || 'Пользователь';
     try {
-      await addComment(id, 'Аноним', commentText);
+      await addComment(id, name, commentText);
       setCommentText('');
       const updated = await listComments(id);
       setComments(updated);
@@ -33,7 +40,21 @@ export default function PostPage() {
     }
   }
 
-  if (error) {
+  const CATEGORY_NAMES: Record<string, string> = {
+    ai: 'Работа с ИИ',
+    food: 'Питание',
+    mind: 'Мышление',
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ color: '#aaa', fontSize: 16 }}>Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (!post) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: 16 }}>
         <div style={{ fontSize: 18, color: '#555' }}>Пост не найден</div>
@@ -42,16 +63,10 @@ export default function PostPage() {
     );
   }
 
-  if (!post) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{ color: '#aaa' }}>Загрузка...</div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+
+      {/* ШАПКА */}
       <header style={{
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
@@ -68,48 +83,93 @@ export default function PostPage() {
       </header>
 
       <div style={{ maxWidth: 750, margin: '0 auto', padding: '32px 16px' }}>
+
+        {/* КАРТИНКА */}
         {post.mediaurl && (
-          <img src={post.mediaurl} alt={post.title} style={{ width: '100%', maxHeight: 400, objectFit: 'cover', borderRadius: 12, marginBottom: 24 }} />
+          <img
+            src={post.mediaurl}
+            alt={post.title}
+            style={{ width: '100%', maxHeight: 400, objectFit: 'cover', borderRadius: 12, marginBottom: 24 }}
+          />
         )}
 
+        {/* ТЕКСТ ПОСТА */}
         <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1 }}>ПОСТ</span>
+            <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1, color: '#333' }}>ПОСТ</span>
             <span style={{ backgroundColor: '#e0f2f1', color: '#00897b', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
-              {post.categoryid}
+              {CATEGORY_NAMES[post.categoryid] ?? post.categoryid}
             </span>
           </div>
           <div style={{ fontSize: 12, color: '#aaa', marginBottom: 16 }}>{post.author} · {post.createdat}</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>{post.title}</h1>
-          <p style={{ fontSize: 15, lineHeight: 1.7, color: '#333' }}>{post.description}</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: '#111' }}>{post.title}</h1>
+          <p style={{ fontSize: 15, lineHeight: 1.8, color: '#333', whiteSpace: 'pre-wrap' }}>{post.description}</p>
         </div>
 
+        {/* КОММЕНТАРИИ */}
         <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>Комментарии</span>
-            <button onClick={() => listComments(id).then(setComments)} style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>Комментарии {comments.length > 0 && `(${comments.length})`}</span>
+            <button
+              onClick={() => listComments(id).then(setComments)}
+              style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#555' }}
+            >
               Обновить
             </button>
           </div>
+
           {comments.length === 0 ? (
-            <div style={{ color: '#aaa', fontSize: 14, marginBottom: 16 }}>Пока нет комментариев — будь первым.</div>
+            <div style={{ color: '#aaa', fontSize: 14, marginBottom: 20 }}>Пока нет комментариев — будь первым.</div>
           ) : (
-            comments.map(c => (
-              <div key={c.commentid} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: '#aaa', marginBottom: 4 }}>{c.author} · {c.createdat}</div>
-                <div style={{ fontSize: 14, color: '#333' }}>{c.text}</div>
-              </div>
-            ))
+            <div style={{ marginBottom: 20 }}>
+              {comments.map(c => (
+                <div key={c.commentid} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      backgroundColor: '#00897b', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {(c.author || 'П')[0].toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{c.author || 'Пользователь'}</span>
+                    <span style={{ fontSize: 11, color: '#aaa' }}>{c.createdat}</span>
+                  </div>
+                  <div style={{ fontSize: 14, color: '#333', paddingLeft: 36 }}>{c.text}</div>
+                </div>
+              ))}
+            </div>
           )}
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+
+          {/* ФОРМА КОММЕНТАРИЯ */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="Добавить комментарий..."
-              style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }}
+              value={authorName}
+              onChange={e => setAuthorName(e.target.value)}
+              placeholder="Ваше имя (необязательно)"
+              style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }}
             />
-            <button onClick={handleSend} disabled={sending} style={{ backgroundColor: '#00897b', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', cursor: sending ? 'not-allowed' : 'pointer', fontSize: 18 }}>↵</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                placeholder="Написать комментарий..."
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }}
+              />
+              <button
+                onClick={handleSend}
+                disabled={sending}
+                style={{
+                  backgroundColor: sending ? '#aaa' : '#00897b',
+                  color: '#fff', border: 'none', borderRadius: 8,
+                  padding: '10px 18px', cursor: sending ? 'not-allowed' : 'pointer', fontSize: 16,
+                }}
+              >
+                ↵
+              </button>
+            </div>
           </div>
         </div>
       </div>
