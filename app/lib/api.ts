@@ -1,14 +1,14 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export type Post = {
-  postid:      string;
-  title:       string;
+  postid:     string;
+  title:      string;
   description: string;
-  mediaurl:    string;
-  type:        string;
-  categoryid:  string;
-  author:      string;
-  createdat:   string; // ISO строка из YDB Timestamp
+  mediaurl:   string;
+  type:       string;
+  categoryid: string;
+  author:     string;
+  createdat:  string; // ISO строка из YDB Timestamp
 };
 
 export type Comment = {
@@ -22,40 +22,29 @@ export type Comment = {
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
   if (!res.ok) {
-    const error = await res.text().catch(() => res.statusText);
-    throw new Error(error || `HTTP ${res.status}`);
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json();
 }
 
-export async function listPosts(category?: string): Promise<Post[]> {
-  const url = category && category !== 'all'
-    ? `${API_URL}/posts?category=${category}`
-    : `${API_URL}/posts`;
-  return apiFetch<Post[]>(url);
+export async function listPosts(): Promise<Post[]> {
+  return apiFetch<Post[]>(`${API_URL}/posts`);
 }
 
-export async function getPost(id: string): Promise<Post> {
-  return apiFetch<Post>(`${API_URL}/posts/${id}`);
+export async function getPost(postid: string): Promise<Post> {
+  return apiFetch<Post>(`${API_URL}/posts/${postid}`);
 }
 
-export async function listComments(postId: string): Promise<Comment[]> {
-  try {
-    return await apiFetch<Comment[]>(`${API_URL}/comments?postid=${postId}`);
-  } catch {
-    return [];
-  }
+export async function listComments(postid: string): Promise<Comment[]> {
+  return apiFetch<Comment[]>(`${API_URL}/posts/${postid}/comments`);
 }
 
-export async function addComment(
-  postId: string,
-  author: string,
-  text: string,
-): Promise<Comment> {
-  return apiFetch<Comment>(`${API_URL}/upload`, {
+export async function addComment(postid: string, author: string, text: string): Promise<void> {
+  return apiFetch<void>(`${API_URL}/posts/${postid}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'comment', postid: postId, author, text }),
+    body: JSON.stringify({ author, text }),
   });
 }
 
@@ -64,13 +53,15 @@ export async function createPost(data: {
   description: string;
   categoryid: string;
   author?: string;
-  imageBase64?: string | null;
-  imageName?: string | null;
-  imageMime?: string | null;
-}): Promise<{ postId: string; mediaUrl: string; type: string }> {
-  return apiFetch(`${API_URL}/upload`, {
+  mediaurl?: string;
+  type?: string;
+  imageBase64?: string;
+  imageName?: string;
+  imageMime?: string;
+}): Promise<Post> {
+  return apiFetch<Post>(`${API_URL}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'createpost', ...data }),
+    body: JSON.stringify(data),
   });
 }
