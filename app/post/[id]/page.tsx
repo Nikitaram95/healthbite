@@ -10,11 +10,12 @@ export default function PostPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    getPost(id).then(setPost);
-    listComments(id).then(setComments);
+    getPost(id).then(setPost).catch(() => setError(true));
+    listComments(id).then(setComments).catch(() => {});
   }, [id]);
 
   async function handleSend() {
@@ -32,6 +33,15 @@ export default function PostPage() {
     }
   }
 
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: 16 }}>
+        <div style={{ fontSize: 18, color: '#555' }}>Пост не найден</div>
+        <a href="/" style={{ color: '#00897b' }}>← На главную</a>
+      </div>
+    );
+  }
+
   if (!post) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -42,7 +52,6 @@ export default function PostPage() {
 
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      {/* ШАПКА */}
       <header style={{
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
@@ -58,18 +67,11 @@ export default function PostPage() {
         <a href="/" style={{ color: '#00897b', fontSize: 14, textDecoration: 'none' }}>← Назад</a>
       </header>
 
-      {/* КОНТЕНТ */}
       <div style={{ maxWidth: 750, margin: '0 auto', padding: '32px 16px' }}>
-        {/* КАРТИНКА */}
         {post.mediaurl && (
-          <img
-            src={post.mediaurl}
-            alt={post.title}
-            style={{ width: '100%', maxHeight: 400, objectFit: 'cover', borderRadius: 12, marginBottom: 24 }}
-          />
+          <img src={post.mediaurl} alt={post.title} style={{ width: '100%', maxHeight: 400, objectFit: 'cover', borderRadius: 12, marginBottom: 24 }} />
         )}
 
-        {/* ПОСТ */}
         <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1 }}>ПОСТ</span>
@@ -82,18 +84,13 @@ export default function PostPage() {
           <p style={{ fontSize: 15, lineHeight: 1.7, color: '#333' }}>{post.description}</p>
         </div>
 
-        {/* КОММЕНТАРИИ */}
         <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontWeight: 600, fontSize: 16 }}>Комментарии</span>
-            <button
-              onClick={() => listComments(id).then(setComments)}
-              style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#555' }}
-            >
+            <button onClick={() => listComments(id).then(setComments)} style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 13, color: '#555' }}>
               Обновить
             </button>
           </div>
-
           {comments.length === 0 ? (
             <div style={{ color: '#aaa', fontSize: 14, marginBottom: 16 }}>Пока нет комментариев — будь первым.</div>
           ) : (
@@ -104,8 +101,6 @@ export default function PostPage() {
               </div>
             ))
           )}
-
-          {/* ФОРМА КОММЕНТАРИЯ */}
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <input
               value={commentText}
@@ -114,21 +109,7 @@ export default function PostPage() {
               placeholder="Добавить комментарий..."
               style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }}
             />
-            <button
-              onClick={handleSend}
-              disabled={sending}
-              style={{
-                backgroundColor: '#00897b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '10px 16px',
-                cursor: sending ? 'not-allowed' : 'pointer',
-                fontSize: 18,
-              }}
-            >
-              ↵
-            </button>
+            <button onClick={handleSend} disabled={sending} style={{ backgroundColor: '#00897b', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', cursor: sending ? 'not-allowed' : 'pointer', fontSize: 18 }}>↵</button>
           </div>
         </div>
       </div>
