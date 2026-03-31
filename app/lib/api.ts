@@ -1,5 +1,14 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
+// Генерируем userId один раз на сессию (без localStorage)
+let _userId: string | null = null;
+export function getUserId(): string {
+  if (!_userId) {
+    _userId = `user_${Math.random().toString(36).slice(2)}`;
+  }
+  return _userId;
+}
+
 export type Post = {
   postid:      string;
   title:       string;
@@ -18,6 +27,11 @@ export type Comment = {
   author:    string;
   text:      string;
   createdat: string;
+};
+
+export type LikeStatus = {
+  likes:   number;
+  isLiked: boolean;
 };
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -49,23 +63,32 @@ export async function addComment(postid: string, author: string, text: string): 
   });
 }
 
-export async function likePost(postid: string): Promise<{ likes: number }> {
-  return apiFetch<{ likes: number }>(`${API_URL}/posts/${postid}/like`, {
+// Тоггл: первый вызов = лайк, второй = анлайк
+export async function likePost(postid: string): Promise<LikeStatus> {
+  return apiFetch<LikeStatus>(`${API_URL}/posts/${postid}/like`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: getUserId() }),
   });
 }
 
+// Узнать статус лайка при загрузке поста
+export async function getLikeStatus(postid: string): Promise<LikeStatus> {
+  return apiFetch<LikeStatus>(
+    `${API_URL}/posts/${postid}/like?userId=${getUserId()}`
+  );
+}
+
 export async function createPost(data: {
-  title: string;
-  description: string;
-  categoryid: string;
-  author?: string;
+  title:        string;
+  description:  string;
+  categoryid:   string;
+  author?:      string;
   imageBase64?: string;
-  imageName?: string;
-  imageMime?: string;
+  imageName?:   string;
+  imageMime?:   string;
   videoBase64?: string;
-  videoName?: string;
+  videoName?:   string;
 }): Promise<Post> {
   return apiFetch<Post>(`${API_URL}/upload`, {
     method: 'POST',
