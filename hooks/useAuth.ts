@@ -24,7 +24,7 @@ export function useAuth() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => setUser(data))
+    .then(data => setUser(data.user ?? data))
       .catch(() => deleteCookie('token'))
       .finally(() => setLoading(false));
   }, []);

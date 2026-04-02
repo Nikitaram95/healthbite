@@ -123,7 +123,7 @@ export default function FeedPage() {
             <Link href="/profile" style={s.avatar}>
               {user.avatar_url
                 ? <img src={user.avatar_url} alt="" width={32} height={32} style={s.avatarImg}/>
-                : <span style={s.avatarFallback}>{(user.name || user.phone).slice(0,1).toUpperCase()}</span>
+                : <span style={s.avatarFallback}>{(user.name || user.phone || '?').slice(0,1).toUpperCase()}</span>
               }
             </Link>
             <button style={s.logoutBtn} onClick={handleLogout}>Выйти</button>
