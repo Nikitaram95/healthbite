@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import useAuth from '@/hooks/useAuth'; // твой хук
+import { useAuth } from '@/hooks/useAuth';
 
 interface Post {
   postid: string;
