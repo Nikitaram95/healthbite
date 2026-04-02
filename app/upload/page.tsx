@@ -48,48 +48,76 @@ export default function UploadPage() {
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) { setError('Введите заголовок'); return; }
-    setError('');
-    setLoading(true);
-    try {
-      const body: Record<string, string> = {
-        title:       title.trim(),
-        description: description.trim(),
-        categoryid:  category,
-        author:      user?.name || user?.phone || 'anonymous',
-      };
-      if (file) {
-        const b64 = await toBase64(file);
-        if (isVideo) {
-          body.videoBase64 = b64;
-          body.videoName   = file.name;
-        } else {
-          body.imageBase64 = b64;
-          body.imageName   = file.name;
-          body.imageMime   = file.type;
-        }
-      }
-      const token = getToken();
-      const res = await fetch(`${API}/upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка при публикации');
-      router.push(`/post/${data.postId}`);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+ async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  if (!title.trim()) { setError('Введите заголовок'); return; }
+  setError('');
+  setLoading(true);
+  try {
+    const token = getToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
+    let videoPublicUrl = '';
+
+    // Если видео — сначала получаем presigned URL и загружаем напрямую в S3
+    if (file && isVideo) {
+      const urlRes = await fetch(`${API}/upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action:   'get_video_upload_url',
+          filename: file.name,
+          fileSize: file.size,
+        }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error || 'Ошибка получения URL');
+
+      // Загружаем видео напрямую в S3
+      const uploadRes = await fetch(urlData.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!uploadRes.ok) throw new Error('Ошибка загрузки видео в S3');
+      videoPublicUrl = urlData.publicUrl;
+    }
+
+    // Создаём пост
+    const postBody: Record<string, string> = {
+      action:      'create_post',   // ← обязательное поле!
+      title:       title.trim(),
+      description: description.trim(),
+      categoryid:  category,
+      author:      user?.name || user?.phone || 'anonymous',
+    };
+
+    if (videoPublicUrl) {
+      postBody.videoPublicUrl = videoPublicUrl;
+    } else if (file && !isVideo) {
+      const b64 = await toBase64(file);
+      postBody.imageBase64 = b64;
+      postBody.imageName   = file.name;
+      postBody.imageMime   = file.type;
+    }
+
+    const res = await fetch(`${API}/upload`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(postBody),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка при публикации');
+    router.push(`/post/${data.postid}`);   // ← postid (строчные), не postId
+  } catch (e: any) {
+    setError(e.message);
+  } finally {
+    setLoading(false);
+  }
+}
   return (
     <div style={s.page}>
       <header style={s.header}>
