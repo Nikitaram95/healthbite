@@ -1,17 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type Step = 'phone' | 'code';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep]       = useState<Step>('phone');
-  const [phone, setPhone]     = useState('');
-  const [code, setCode]       = useState('');
+  const searchParams = useSearchParams();
+  const from = searchParams.get('from') || '/feed'; // ← берём куда редиректить
+
+  const [step, setStep] = useState<Step>('phone');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [error, setError] = useState('');
 
   const API = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -73,13 +76,14 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Неверный код');
       document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-      router.push('/');
+      router.push(from); // ← редирект на /feed или на страницу откуда пришли
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <main style={styles.root}>

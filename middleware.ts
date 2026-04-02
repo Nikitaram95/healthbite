@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED  = ['/', '/profile', '/upload', '/feed'];
+// Только реально приватные маршруты — лендинг '/' публичный
+const PROTECTED = ['/feed', '/profile', '/upload'];
 const GUEST_ONLY = ['/login'];
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const path  = request.nextUrl.pathname;
+  const path = request.nextUrl.pathname;
 
   const isProtected = PROTECTED.some(p => path === p || path.startsWith(p + '/'));
   const isGuestOnly = GUEST_ONLY.includes(path);
@@ -18,10 +19,10 @@ export function middleware(request: NextRequest) {
   }
 
   if (isGuestOnly && token) {
-    const from = request.nextUrl.searchParams.get('from') || '/';
-    const url  = request.nextUrl.clone();
+    const from = request.nextUrl.searchParams.get('from') || '/feed';
+    const url = request.nextUrl.clone();
     url.pathname = from;
-    url.search   = '';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 
