@@ -1,10 +1,10 @@
+// proxy.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-// Только реально приватные маршруты — лендинг '/' публичный
 const PROTECTED = ['/feed', '/profile', '/upload'];
 const GUEST_ONLY = ['/login'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const path = request.nextUrl.pathname;
 
