@@ -1,57 +1,53 @@
-// hooks/useAuth.ts
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-interface User {
-  id:          string;
-  name:        string;
-  phone:       string;
-  avatar_url?: string;
+export interface User {
+  id:         string;
+  phone:      string;
+  name:       string;
+  avatar_url: string;
 }
 
-interface AuthState {
-  user:     User | null | undefined;  // undefined = ещё загружается, null = не авторизован
-  getToken: () => string | null;
-  logout:   () => void;
-}
-
-export function useAuth(): AuthState {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+export function useAuth() {
+  const [user, setUser]       = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router                = useRouter();
+  const API = process.env.NEXT_PUBLIC_API_URL || '';
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setUser(null);
-      return;
-    }
+    const token = getCookie('token');
+    if (!token) { setLoading(false); return; }
 
-    // Декодируем payload из JWT (без верификации — только для UI)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setUser({
-        id:         payload.sub  || payload.id   || 'unknown',
-        name:       payload.name || payload.phone || '',
-        phone:      payload.phone || '',
-        avatar_url: payload.avatar_url,
-      });
-    } catch {
-      setUser(null);
-    }
+    fetch(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setUser(data))
+      .catch(() => deleteCookie('token'))
+      .finally(() => setLoading(false));
   }, []);
 
-  function getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    // Ищем токен в cookie
-    const match = document.cookie.match(/(?:^|;\s*)token=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : null;
-  }
-
   function logout() {
-    // Удаляем cookie
-    document.cookie = 'token=; Max-Age=0; path=/';
+    deleteCookie('token');
     setUser(null);
+    router.push('/login');
   }
 
-  return { user, getToken, logout };
+  function getToken() {
+    return getCookie('token');
+  }
+
+  return { user, loading, logout, getToken };
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
 }
