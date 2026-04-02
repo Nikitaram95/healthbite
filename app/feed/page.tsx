@@ -18,38 +18,37 @@ interface Post {
 }
 
 const CATEGORIES = [
-  { id: '',        label: 'Все' },
-  { id: 'ai',      label: 'AI' },
-  { id: 'health',  label: 'Здоровье' },
-  { id: 'food',    label: 'Питание' },
-  { id: 'sport',   label: 'Спорт' },
-  { id: 'mental',  label: 'Ментальное' },
+  { id: '',       label: 'Все' },
+  { id: 'ai',     label: 'AI' },
+  { id: 'health', label: 'Здоровье' },
+  { id: 'food',   label: 'Питание' },
+  { id: 'sport',  label: 'Спорт' },
+  { id: 'mental', label: 'Ментальное' },
 ];
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 
 export default function FeedPage() {
-  const { user, getToken, logout } = useAuth();
+  const { user, loading, logout, getToken } = useAuth();
   const router = useRouter();
 
   const [posts, setPosts]       = useState<Post[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [category, setCategory] = useState('');
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
 
-  // Защита роута — неавторизованных на лендинг
+  // Защита роута
   useEffect(() => {
-    if (user === null) {
-      router.push('/');
-    }
-  }, [user, router]);
+    if (!loading && !user) router.push('/');
+  }, [loading, user, router]);
 
+  // Загрузка постов
   useEffect(() => {
-    if (user) fetchPosts();
-  }, [category, user]);
+    if (!loading && user) fetchPosts();
+  }, [category, loading, user]);
 
   async function fetchPosts() {
-    setLoading(true);
+    setFetching(true);
     try {
       const url = category ? `${API}/posts?category=${category}` : `${API}/posts`;
       const res  = await fetch(url);
@@ -58,7 +57,7 @@ export default function FeedPage() {
     } catch {
       setPosts([]);
     } finally {
-      setLoading(false);
+      setFetching(false);
     }
   }
 
@@ -89,18 +88,21 @@ export default function FeedPage() {
   }
 
   function handleLogout() {
-    logout?.();
+    logout();
     router.push('/');
   }
 
-  // Пока определяем авторизацию — не рендерим ничего
-  if (user === undefined) {
+  // Auth загружается
+  if (loading) {
     return (
       <div style={s.page}>
         <div style={s.center}><Spinner /></div>
       </div>
     );
   }
+
+  // Не авторизован — редирект уже запущен в useEffect
+  if (!user) return null;
 
   return (
     <div style={s.page}>
@@ -117,22 +119,14 @@ export default function FeedPage() {
           </Link>
 
           <div style={s.headerRight}>
-            {user && (
-              <Link href="/upload" style={s.addBtn}>+ Добавить</Link>
-            )}
-            {user ? (
-              <>
-                <Link href="/profile" style={s.avatar}>
-                  {user.avatar_url
-                    ? <img src={user.avatar_url} alt="" width={32} height={32} style={s.avatarImg}/>
-                    : <span style={s.avatarFallback}>{(user.name || user.phone).slice(0,1).toUpperCase()}</span>
-                  }
-                </Link>
-                <button style={s.logoutBtn} onClick={handleLogout}>Выйти</button>
-              </>
-            ) : (
-              <Link href="/login" style={s.loginLink}>Войти</Link>
-            )}
+            <Link href="/upload" style={s.addBtn}>+ Добавить</Link>
+            <Link href="/profile" style={s.avatar}>
+              {user.avatar_url
+                ? <img src={user.avatar_url} alt="" width={32} height={32} style={s.avatarImg}/>
+                : <span style={s.avatarFallback}>{(user.name || user.phone).slice(0,1).toUpperCase()}</span>
+              }
+            </Link>
+            <button style={s.logoutBtn} onClick={handleLogout}>Выйти</button>
           </div>
         </div>
       </header>
@@ -154,12 +148,18 @@ export default function FeedPage() {
 
       {/* Лента */}
       <main style={s.feed}>
-        {loading ? (
+        {fetching ? (
           <div style={s.center}><Spinner /></div>
         ) : posts.length === 0 ? (
           <div style={s.empty}>
-            <p>Постов пока нет</p>
-            {user && <Link href="/upload" style={s.addBtn}>Добавить первый</Link>}
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d4d1ca" strokeWidth="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <p style={{ color: '#7a7974', fontSize: '.9375rem' }}>Постов пока нет</p>
+            <Link href="/upload" style={s.addBtn}>Добавить первый</Link>
           </div>
         ) : (
           <div style={s.grid}>
@@ -179,8 +179,8 @@ export default function FeedPage() {
 }
 
 function PostCard({ post, liked, onLike }: {
-  post: Post;
-  liked: boolean;
+  post:   Post;
+  liked:  boolean;
   onLike: (id: string) => void;
 }) {
   const [pressing, setPressing] = useState(false);
@@ -188,8 +188,16 @@ function PostCard({ post, liked, onLike }: {
   function handleClick() {
     setPressing(true);
     onLike(post.postid);
-    setTimeout(() => setPressing(false), 300);
+    setTimeout(() => setPressing(false), 280);
   }
+
+  const dateStr = (() => {
+    try {
+      return new Date(post.createdat).toLocaleDateString('ru-RU', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      });
+    } catch { return post.createdat; }
+  })();
 
   return (
     <article style={s.card}>
@@ -218,11 +226,7 @@ function PostCard({ post, liked, onLike }: {
       <div style={s.cardBody}>
         <div style={s.cardMeta}>
           <span style={s.cardCat}>{post.categoryid}</span>
-          <span style={s.cardDate}>
-            {new Date(post.createdat).toLocaleDateString('ru-RU', {
-              day: '2-digit', month: 'short', year: 'numeric'
-            })}
-          </span>
+          <span style={s.cardDate}>{dateStr}</span>
         </div>
         <Link href={`/post/${post.postid}`} style={s.cardTitle}>
           {post.title}
@@ -236,7 +240,7 @@ function PostCard({ post, liked, onLike }: {
             style={{
               ...s.likeBtn,
               ...(liked ? s.likeBtnActive : {}),
-              transform: pressing ? 'scale(1.2)' : 'scale(1)',
+              transform: pressing ? 'scale(1.22)' : 'scale(1)',
               transition: 'transform .2s ease, color .2s ease, border-color .2s ease',
             }}
             onClick={handleClick}
@@ -279,19 +283,18 @@ const s: Record<string, React.CSSProperties> = {
   logoText:       { fontWeight: 700, fontSize: '1.0625rem', color: '#01696f', letterSpacing: '-.02em' },
   headerRight:    { display: 'flex', alignItems: 'center', gap: '.75rem' },
   addBtn:         { background: '#01696f', color: '#fff', padding: '.375rem .875rem', borderRadius: 8, fontSize: '.875rem', fontWeight: 600, textDecoration: 'none' },
-  loginLink:      { fontSize: '.875rem', color: '#01696f', fontWeight: 600, textDecoration: 'none' },
-  logoutBtn:      { fontSize: '.875rem', color: '#7a7974', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: '.375rem .5rem' },
-  avatar:         { width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e6f0f0', textDecoration: 'none' },
+  logoutBtn:      { fontSize: '.8125rem', color: '#bab9b4', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: '.25rem .5rem' },
+  avatar:         { width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e6f0f0', textDecoration: 'none', flexShrink: 0 },
   avatarImg:      { width: 32, height: 32, objectFit: 'cover' },
   avatarFallback: { fontSize: '.875rem', fontWeight: 700, color: '#01696f' },
   catsBar:        { background: '#fff', borderBottom: '1px solid #e8e6e1', overflowX: 'auto' },
   catsInner:      { maxWidth: 960, margin: '0 auto', padding: '0 1rem', display: 'flex', gap: '.375rem', height: 48, alignItems: 'center' },
-  catBtn:         { padding: '.25rem .875rem', borderRadius: 999, border: '1.5px solid #d4d1ca', background: 'none', fontSize: '.875rem', color: '#7a7974', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 500 },
+  catBtn:         { padding: '.25rem .875rem', borderRadius: 999, border: '1.5px solid #d4d1ca', background: 'none', fontSize: '.875rem', color: '#7a7974', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 500, transition: 'all .18s ease' },
   catBtnActive:   { background: '#01696f', borderColor: '#01696f', color: '#fff' },
   feed:           { maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem' },
   grid:           { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(300px,100%),1fr))', gap: '1rem' },
   center:         { display: 'flex', justifyContent: 'center', padding: '4rem 0' },
-  empty:          { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '4rem 0', color: '#7a7974' },
+  empty:          { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '5rem 0' },
   card:           { background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column' },
   cardImg:        { width: '100%', height: 200, objectFit: 'cover', display: 'block' },
   videoWrap:      { position: 'relative', paddingBottom: '56.25%', height: 0 },
