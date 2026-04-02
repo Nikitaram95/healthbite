@@ -2,12 +2,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 type Step = 'phone' | 'code';
 
 export default function LoginClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || '/feed';
 
@@ -77,7 +76,8 @@ export default function LoginClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Неверный код');
       document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-      router.push(from);
+      // ← полная перезагрузка чтобы proxy увидел новый cookie
+      window.location.href = from;
     } catch (e: any) {
       setError(e.message);
     } finally {
