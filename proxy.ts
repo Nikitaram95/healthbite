@@ -1,7 +1,6 @@
-// proxy.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED = ['/feed', '/profile', '/upload'];
+const PROTECTED = ['/feed', '/profile'];
 const GUEST_ONLY = ['/login'];
 
 export function proxy(request: NextRequest) {
