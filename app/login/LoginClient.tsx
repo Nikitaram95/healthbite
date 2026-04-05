@@ -75,7 +75,7 @@ export default function LoginClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Неверный код');
-      document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+     document.cookie = `auth-token=${encodeURIComponent(data.token)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
       // ← полная перезагрузка чтобы proxy увидел новый cookie
       window.location.href = from;
     } catch (e: any) {

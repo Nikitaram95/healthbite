@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED = ['/feed', '/profile'];
+const PROTECTED = ['/feed', '/profile', '/upload'];
 const GUEST_ONLY = ['/login'];
 
-export function proxy(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value;
   const path = request.nextUrl.pathname;
 
-  const isProtected = PROTECTED.some(p => path === p || path.startsWith(p + '/'));
+  const isProtected = PROTECTED.some(
+    (p) => path === p || path.startsWith(p + '/')
+  );
+
   const isGuestOnly = GUEST_ONLY.includes(path);
 
   if (isProtected && !token) {
