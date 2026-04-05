@@ -1,15 +1,10 @@
-// app/login/LoginClient.tsx
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 
 type Step = 'phone' | 'code';
 
 export default function LoginClient() {
-  const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/feed';
-
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -38,10 +33,12 @@ export default function LoginClient() {
     e.preventDefault();
     setError('');
     const normalized = rawPhone(phone);
+
     if (normalized.length < 12) {
       setError('Введите полный номер телефона');
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch(`${API}/auth/send-code`, {
@@ -49,8 +46,10 @@ export default function LoginClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: normalized }),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка отправки');
+
       setStep('code');
     } catch (e: any) {
       setError(e.message);
@@ -62,10 +61,12 @@ export default function LoginClient() {
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
     if (code.length !== 4) {
       setError('Введите 4-значный код');
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch(`${API}/auth/verify`, {
@@ -73,11 +74,12 @@ export default function LoginClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: rawPhone(phone), code }),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Неверный код');
-     document.cookie = `auth-token=${encodeURIComponent(data.token)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-      // ← полная перезагрузка чтобы proxy увидел новый cookie
-      window.location.href = from;
+
+      document.cookie = `auth-token=${encodeURIComponent(data.token)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      window.location.href = '/feed';
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -90,9 +92,9 @@ export default function LoginClient() {
       <div style={styles.card}>
         <div style={styles.logo}>
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-label="HealthBite">
-            <rect width="36" height="36" rx="10" fill="#01696f"/>
-            <path d="M18 8C13 8 9 12 9 17c0 6 9 11 9 11s9-5 9-11c0-5-4-9-9-9z" fill="white" opacity=".9"/>
-            <path d="M14 17h8M18 13v8" stroke="#01696f" strokeWidth="2" strokeLinecap="round"/>
+            <rect width="36" height="36" rx="10" fill="#01696f" />
+            <path d="M18 8C13 8 9 12 9 17c0 6 9 11 9 11s9-5 9-11c0-5-4-9-9-9z" fill="white" opacity=".9" />
+            <path d="M14 17h8M18 13v8" stroke="#01696f" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <span style={styles.logoText}>HealthBite</span>
         </div>
@@ -126,9 +128,7 @@ export default function LoginClient() {
         ) : (
           <>
             <h1 style={styles.title}>Введите код</h1>
-            <p style={styles.subtitle}>
-              Код отправлен на <strong>{phone}</strong>
-            </p>
+            <p style={styles.subtitle}>Код отправлен на <strong>{phone}</strong></p>
             <form onSubmit={handleVerify} noValidate>
               <div style={styles.field}>
                 <label htmlFor="code" style={styles.label}>Код из SMS</label>
@@ -174,8 +174,8 @@ function Spinner() {
       style={{ animation: 'spin 0.7s linear infinite' }}
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <circle cx="12" cy="12" r="10" strokeOpacity=".25"/>
-      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/>
+      <circle cx="12" cy="12" r="10" strokeOpacity=".25" />
+      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
     </svg>
   );
 }
