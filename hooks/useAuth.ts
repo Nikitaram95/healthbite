@@ -17,26 +17,26 @@ export function useAuth() {
   const API = process.env.NEXT_PUBLIC_API_URL || '';
 
   useEffect(() => {
-    const token = getCookie('token');
+    const token = getCookie('auth-token');  // ← auth-token
     if (!token) { setLoading(false); return; }
 
     fetch(`${API}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : Promise.reject())
-    .then(data => setUser(data.user ?? data))
-      .catch(() => deleteCookie('token'))
+      .then(data => setUser(data.user ?? data))
+      .catch(() => deleteCookie('auth-token'))  // ← auth-token
       .finally(() => setLoading(false));
   }, []);
 
   function logout() {
-    deleteCookie('token');
+    deleteCookie('auth-token');  // ← auth-token
     setUser(null);
     router.push('/login');
   }
 
   function getToken() {
-    return getCookie('token');
+    return getCookie('auth-token');  // ← auth-token
   }
 
   return { user, loading, logout, getToken };
