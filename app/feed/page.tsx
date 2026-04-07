@@ -546,7 +546,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '.75rem', color: '#8aa3bf',
   },
   cardTitle: {
-    display: 'block',
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '.9375rem', fontWeight: 700,
     color: '#dceaff', textDecoration: 'none',
