@@ -86,7 +86,7 @@ async function fetchPosts(category: string, userId: string): Promise<Post[]> {
   const params = new URLSearchParams();
   if (category && category !== 'all') params.set('category', category);
   if (userId) params.set('userId', userId);
-  const url = `${API}/posts${params.toString() ? '?' + params.toString() : ''}`;
+  const url = `${API}/post${params.toString() ? '?' + params.toString() : ''}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Ошибка загрузки');
   return res.json();
