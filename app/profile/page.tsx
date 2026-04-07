@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Camera, LogOut, Check, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
@@ -30,25 +29,24 @@ function getDisplayName(name?: string, phone?: string): string {
 
 function AuthorAvatar({ name, src, size = 80 }: { name: string; src?: string; size?: number }) {
   const [imgError, setImgError] = useState(false);
-  const initials = name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
-  const colors = ['#01696f','#437a22','#006494','#7a39bb','#d19900','#da7101','#a12c7b','#a13544'];
-  const color = colors[(name.charCodeAt(0) ?? 0) % colors.length];
+  const letter = (name || '?').slice(0, 1).toUpperCase();
 
   if (src && !imgError) {
     return (
-      <img
-        src={src}
-        alt={name}
-        width={size}
-        height={size}
+      <img src={src} alt={name} width={size} height={size}
         onError={() => setImgError(true)}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-      />
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
     );
   }
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: size * 0.36, fontWeight: 700, flexShrink: 0 }}>
-      {initials || '?'}
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: 'rgba(0,162,255,.15)',
+      border: '2px solid rgba(0,162,255,.3)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
+    }}>
+      {letter}
     </div>
   );
 }
@@ -57,13 +55,58 @@ function AuthorAvatar({ name, src, size = 80 }: { name: string; src?: string; si
 
 function SkeletonProfile() {
   return (
-    <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '40px 24px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, border: '1px solid oklch(from var(--color-text) l c h / 0.08)' }}>
-      <div className="skeleton" style={{ width: 80, height: 80, borderRadius: '50%' }} />
-      <div className="skeleton skeleton-text" style={{ width: 140, height: '1.25em' }} />
-      <div className="skeleton skeleton-text" style={{ width: 100, height: '0.875em' }} />
-      <div className="skeleton" style={{ width: 160, height: 40, borderRadius: 'var(--radius-full)', marginTop: 8 }} />
+    <div style={{ ...s.card, padding: '40px 24px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div className="sk" style={{ width: 88, height: 88, borderRadius: '50%' }} />
+      <div className="sk" style={{ width: 140, height: '1.25em', borderRadius: 6 }} />
+      <div className="sk" style={{ width: 100, height: '0.875em', borderRadius: 6 }} />
+      <div className="sk" style={{ width: 160, height: 42, borderRadius: 999, marginTop: 8 }} />
     </div>
   );
+}
+
+// ─── Спиннер ──────────────────────────────────────────────────────────────────
+
+function Spinner({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+      style={{ animation: 'spin .7s linear infinite', flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10" strokeOpacity=".25" />
+      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ─── Иконки ───────────────────────────────────────────────────────────────────
+
+function ArrowIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    </svg>
+  );
+}
+function CameraIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+  );
+}
+function LogOutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
+function CheckIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>;
+}
+function XIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 }
 
 // ─── Главный компонент ────────────────────────────────────────────────────────
@@ -88,7 +131,7 @@ export default function ProfilePage() {
     if (user) setName(user.name || '');
   }, [user]);
 
-  // ─── Сохранить имя ──────────────────────────────────────────────────────────
+  // ─── Сохранить имя ────────────────────────────────────────────────────────
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -98,10 +141,7 @@ export default function ProfilePage() {
       const token = getToken();
       const res = await fetch(`${API}/auth/profile`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: name.trim(), avatar_url: user?.avatar_url || '' }),
       });
       const data = await res.json();
@@ -115,7 +155,7 @@ export default function ProfilePage() {
     }
   }
 
-  // ─── Загрузить аватар ────────────────────────────────────────────────────────
+  // ─── Загрузить аватар ────────────────────────────────────────────────────
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -125,178 +165,126 @@ export default function ProfilePage() {
     setUploadingAv(true);
     try {
       const token = getToken();
-
-      // 1. Загрузить изображение в S3
       const b64 = await toBase64(file);
       const uploadRes = await fetch(`${API}/upload`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action:      'uploadimage',
-          imageBase64: b64,
-          imageName:   file.name,
-          imageMime:   file.type,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'uploadimage', imageBase64: b64, imageName: file.name, imageMime: file.type }),
       });
       if (!uploadRes.ok) throw new Error('Ошибка загрузки фото');
       const { publicUrl } = await uploadRes.json();
-
-      // 2. Сохранить ссылку в профиле
       const profileRes = await fetch(`${API}/auth/profile`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: user?.name || '', avatar_url: publicUrl }),
       });
       if (!profileRes.ok) throw new Error('Ошибка обновления профиля');
-
       window.location.reload();
     } catch (err: unknown) {
       setAvatarError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally {
       setUploadingAv(false);
-      // Сбросить input чтобы можно было загрузить тот же файл повторно
       if (avatarRef.current) avatarRef.current.value = '';
     }
   }
 
-  // ─── Рендер: загрузка ───────────────────────────────────────────────────────
+  // ─── Скелетон ─────────────────────────────────────────────────────────────
 
   if (loading || !user) {
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
-        <header style={headerStyle}><div style={headerInner}><div style={{ width: 34 }} /><span style={logoStyle}>HealthBite</span><div style={{ width: 34 }} /></div></header>
-        <main style={mainStyle}><SkeletonProfile /></main>
-        <SkeletonStyles />
+      <div style={s.page}>
+        <style>{globalStyles}</style>
+        <div style={s.gridBg} />
+        <header style={s.header}>
+          <div style={s.headerInner}>
+            <div style={{ width: 34 }} />
+            <span style={s.logo}>HealthBite</span>
+            <div style={{ width: 34 }} />
+          </div>
+        </header>
+        <main style={s.main}><SkeletonProfile /></main>
       </div>
     );
   }
 
   const displayName = getDisplayName(user.name, user.phone);
 
-  // ─── Рендер: профиль ────────────────────────────────────────────────────────
+  // ─── Рендер ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
+    <div style={s.page}>
+      <style>{globalStyles}</style>
+      <div style={s.gridBg} />
 
       {/* Шапка */}
-      <header style={headerStyle}>
-        <div style={headerInner}>
-          <button onClick={() => router.push('/feed')} style={backBtnStyle} aria-label="В ленту">
-            <ArrowLeft size={18} />
+      <header style={s.header}>
+        <div style={s.headerInner}>
+          <button onClick={() => router.push('/feed')} style={s.backBtn} aria-label="В ленту">
+            <ArrowIcon />
           </button>
-          <span style={logoStyle}>Профиль</span>
+          <span style={s.logo}>Профиль</span>
           <button
-            onClick={logout}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 500 }}
+            onClick={() => { logout(); router.push('/'); }}
+            style={s.logoutBtn}
             aria-label="Выйти"
           >
-            <LogOut size={16} />
+            <LogOutIcon />
             Выйти
           </button>
         </div>
       </header>
 
-      <main style={mainStyle}>
-        <section
-          style={{
-            background: 'var(--color-surface)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '40px 24px 32px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 20,
-            border: '1px solid oklch(from var(--color-text) l c h / 0.08)',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          {/* Аватар с кнопкой смены */}
+      <main style={s.main}>
+        <section style={{ ...s.card, padding: '40px 24px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+
+          {/* Аватар */}
           <div style={{ position: 'relative' }}>
-            <div style={{ borderRadius: '50%', overflow: 'hidden', width: 88, height: 88 }}>
+            <div style={{ borderRadius: '50%', overflow: 'hidden', width: 88, height: 88, boxShadow: '0 0 0 3px rgba(0,162,255,.25), 0 0 20px rgba(0,162,255,.15)' }}>
               <AuthorAvatar name={displayName} src={user.avatar_url} size={88} />
             </div>
-
-            {/* Кнопка смены фото */}
             <button
               onClick={() => avatarRef.current?.click()}
               disabled={uploadingAv}
               aria-label="Сменить фото"
               style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 30,
-                height: 30,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                color: '#fff',
-                border: '2.5px solid var(--color-bg)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                position: 'absolute', bottom: 0, right: 0,
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'linear-gradient(180deg, rgba(0,162,255,.3), rgba(0,162,255,.15))',
+                border: '2px solid rgba(0,162,255,.5)',
+                color: '#7ecfff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: uploadingAv ? 'wait' : 'pointer',
                 opacity: uploadingAv ? 0.7 : 1,
                 transition: 'opacity 180ms ease',
+                boxShadow: '0 0 10px rgba(0,162,255,.3)',
               }}
             >
-              {uploadingAv
-                ? <Spinner size={14} />
-                : <Camera size={14} />
-              }
+              {uploadingAv ? <Spinner size={14} /> : <CameraIcon size={14} />}
             </button>
-
-            <input
-              ref={avatarRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleAvatarChange}
-            />
+            <input ref={avatarRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
           </div>
 
           {avatarError && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', margin: '-8px 0 0' }}>
-              {avatarError}
-            </p>
+            <p style={{ fontSize: '.75rem', color: '#ff8e8e', margin: '-8px 0 0' }}>{avatarError}</p>
           )}
 
-          {/* Имя и телефон */}
+          {/* Имя */}
           {!editMode ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1.2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.1rem, 3vw, 1.375rem)', fontWeight: 800, color: '#dceaff', lineHeight: 1.2, textAlign: 'center' }}>
                 {displayName}
               </h1>
               {user.phone && (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                  {user.phone}
-                </p>
+                <p style={{ fontSize: '.875rem', color: '#8aa3bf' }}>{user.phone}</p>
               )}
               <button
                 onClick={() => setEditMode(true)}
-                style={{
-                  marginTop: 12,
-                  padding: '9px 22px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1.5px solid var(--color-border)',
-                  background: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'border-color 180ms ease, color 180ms ease',
-                }}
+                style={s.editBtn}
               >
                 Редактировать имя
               </button>
             </div>
           ) : (
-            /* Форма редактирования */
             <form onSubmit={handleSaveName} style={{ width: '100%', maxWidth: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <input
                 type="text"
@@ -306,100 +294,150 @@ export default function ProfilePage() {
                 maxLength={60}
                 autoFocus
                 style={{
-                  width: '100%',
-                  height: 46,
-                  padding: '0 14px',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1.5px solid var(--color-primary)',
-                  fontSize: 'var(--text-base)',
-                  color: 'var(--color-text)',
-                  background: 'var(--color-surface-offset)',
-                  outline: 'none',
-                  textAlign: 'center',
-                  fontFamily: 'inherit',
+                  width: '100%', height: 46,
+                  padding: '0 14px', borderRadius: 12,
+                  border: '1.5px solid rgba(0,162,255,.45)',
+                  fontSize: '.9375rem', color: '#dceaff',
+                  background: 'rgba(0,162,255,.06)',
+                  outline: 'none', textAlign: 'center',
+                  fontFamily: '"Exo 2", sans-serif',
                 }}
               />
               {saveError && (
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)' }}>{saveError}</p>
+                <p style={{ fontSize: '.75rem', color: '#ff8e8e' }}>{saveError}</p>
               )}
               <div style={{ display: 'flex', gap: 8, width: '100%' }}>
                 <button
                   type="button"
                   onClick={() => { setEditMode(false); setName(user.name || ''); setSaveError(''); }}
-                  style={{ flex: 1, height: 42, borderRadius: 'var(--radius-full)', border: '1.5px solid var(--color-border)', background: 'none', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  style={{ ...s.cancelBtn, flex: 1 }}
                 >
-                  <X size={15} /> Отмена
+                  <XIcon /> Отмена
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !name.trim()}
-                  style={{ flex: 1, height: 42, borderRadius: 'var(--radius-full)', border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', opacity: saving || !name.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  style={{ ...s.btnPrimary, flex: 1, opacity: saving || !name.trim() ? 0.45 : 1, cursor: saving || !name.trim() ? 'default' : 'pointer' }}
                 >
-                  {saving ? <Spinner size={15} /> : <><Check size={15} /> Сохранить</>}
+                  {saving ? <Spinner size={15} /> : <><CheckIcon /> Сохранить</>}
                 </button>
               </div>
             </form>
           )}
 
-          {/* Ссылка на ленту */}
-          <Link
-            href="/feed"
-            style={{ marginTop: 8, fontSize: 'var(--text-sm)', color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
-          >
-            Вернуться в ленту →
+          {/* Разделитель */}
+          <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,.06)' }} />
+
+          <Link href="/feed" style={{ fontSize: '.875rem', color: '#00a2ff', fontWeight: 600, textDecoration: 'none' }}>
+            ← Вернуться в ленту
           </Link>
         </section>
       </main>
-
-      <SkeletonStyles />
     </div>
   );
 }
 
-// ─── Хелперы ──────────────────────────────────────────────────────────────────
+// ─── Глобальные стили ─────────────────────────────────────────────────────────
 
-function Spinner({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-      style={{ animation: 'spin .7s linear infinite', flexShrink: 0 }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <circle cx="12" cy="12" r="10" strokeOpacity=".25" />
-      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-    </svg>
-  );
-}
+const globalStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=Exo+2:wght@400;500;600;700&display=swap');
+  @keyframes spin    { to { transform: rotate(360deg) } }
+  @keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+  * { box-sizing: border-box; }
+  body { background: #0d1623; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,162,255,.3); border-radius: 4px; }
+  .sk {
+    background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.09) 50%, rgba(255,255,255,.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+`;
 
-const headerStyle: React.CSSProperties = {
-  position: 'sticky', top: 0, zIndex: 50,
-  background: 'oklch(from var(--color-bg) l c h / 0.92)',
-  backdropFilter: 'blur(12px)',
-  borderBottom: '1px solid oklch(from var(--color-text) l c h / 0.07)',
+// ─── Стили ────────────────────────────────────────────────────────────────────
+
+const s: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: '100dvh',
+    background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)',
+    fontFamily: '"Exo 2", system-ui, sans-serif',
+    color: '#f4f8ff',
+    position: 'relative',
+  },
+  gridBg: {
+    position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+    backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)',
+    backgroundSize: '56px 56px',
+    maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)',
+  },
+  header: {
+    background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)',
+    borderBottom: '1px solid rgba(0,162,255,.1)',
+    position: 'sticky', top: 0, zIndex: 100,
+  },
+  headerInner: {
+    maxWidth: 520, margin: '0 auto', padding: '0 16px',
+    height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  },
+  logo: {
+    fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1rem',
+    background: 'linear-gradient(90deg, #00a2ff, #fff)',
+    WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+  },
+  backBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: 10,
+    background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)',
+    color: '#7ecfff', cursor: 'pointer',
+  },
+  logoutBtn: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    color: '#ff8e8e', background: 'none', border: 'none',
+    cursor: 'pointer', fontSize: '.8125rem', fontWeight: 600,
+    fontFamily: '"Exo 2", sans-serif',
+  },
+  main: {
+    maxWidth: 520, margin: '0 auto',
+    padding: '24px 16px 48px',
+    position: 'relative', zIndex: 1,
+  },
+  card: {
+    background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))',
+    border: '1px solid rgba(255,255,255,.07)',
+    borderRadius: 18, overflow: 'hidden',
+    boxShadow: '0 8px 32px rgba(0,0,0,.35)',
+  },
+  editBtn: {
+    marginTop: 8,
+    padding: '9px 22px',
+    borderRadius: 999,
+    border: '1px solid rgba(0,162,255,.25)',
+    background: 'rgba(0,162,255,.06)',
+    color: '#7ecfff',
+    fontSize: '.875rem', fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: '"Exo 2", sans-serif',
+    transition: 'all .18s ease',
+  },
+  cancelBtn: {
+    height: 42, borderRadius: 999,
+    border: '1px solid rgba(255,255,255,.12)',
+    background: 'rgba(255,255,255,.04)',
+    color: '#8aa3bf',
+    fontSize: '.875rem', fontWeight: 600,
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    fontFamily: '"Exo 2", sans-serif',
+  },
+  btnPrimary: {
+    height: 42, borderRadius: 999,
+    border: '1px solid rgba(0,162,255,.35)',
+    background: 'linear-gradient(180deg, rgba(0,162,255,.25), rgba(0,162,255,.12))',
+    color: '#fff',
+    fontSize: '.875rem', fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    fontFamily: '"Exo 2", sans-serif',
+    boxShadow: '0 0 14px rgba(0,162,255,.2)',
+  },
 };
-
-const headerInner: React.CSSProperties = {
-  maxWidth: 480, margin: '0 auto', padding: '0 16px',
-  height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-};
-
-const backBtnStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', color: 'var(--color-text-muted)',
-  padding: 6, borderRadius: 'var(--radius-md)', background: 'none', border: 'none', cursor: 'pointer',
-};
-
-const logoStyle: React.CSSProperties = {
-  fontWeight: 800, color: 'var(--color-text)', fontSize: 'var(--text-base)', letterSpacing: '-0.02em',
-};
-
-const mainStyle: React.CSSProperties = {
-  maxWidth: 480, margin: '0 auto', padding: '24px 16px 48px',
-};
-
-function SkeletonStyles() {
-  return (
-    <style>{`
-      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-      .skeleton { background: linear-gradient(90deg, var(--color-surface-offset) 25%, var(--color-surface-dynamic) 50%, var(--color-surface-offset) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: var(--radius-sm); }
-      .skeleton-text { height: 1em; margin-bottom: 6px; }
-    `}</style>
-  );
-}
