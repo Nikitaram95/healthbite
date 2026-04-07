@@ -29,7 +29,7 @@ interface Comment {
   createdat: string;
 }
 
-const API_BASE = 'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
 
 const CATEGORIES: Record<string, string> = {
   food:      'Питание',
@@ -154,35 +154,57 @@ export default function PostPage() {
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
 
-  const loadPost = useCallback(async () => {
-    if (!id) return;
-    setLoadingPost(true);
-    try {
-      const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
-      const res = await fetch(`${API_BASE}/post/${id}${qs}`);
-      if (res.status === 404) { router.push('/feed'); return; }
-      if (!res.ok) throw new Error('Ошибка загрузки');
-      setPost(await res.json());
-    } catch (e) {
-      console.error('loadPost:', e);
-    } finally {
-      setLoadingPost(false);
-    }
-  }, [id, user?.phone, router]);
+const loadPost = useCallback(async () => {
+  if (!id) return;
 
-  const loadComments = useCallback(async () => {
-    if (!id) return;
-    setLoadingComments(true);
-    try {
-      const res  = await fetch(`${API_BASE}/post/${id}/comments`);
-      const data = await res.json();
-      setComments(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error('loadComments:', e);
-    } finally {
-      setLoadingComments(false);
+  setLoadingPost(true);
+
+  try {
+    const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
+    const res = await fetch(`${API}/posts/${id}${qs}`);
+
+    if (res.status === 404) {
+      router.push('/feed');
+      return;
     }
-  }, [id]);
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`loadPost ${res.status}: ${text}`);
+    }
+
+    const data = await res.json();
+    setPost(data);
+  } catch (e) {
+    console.error('loadPost:', e);
+  } finally {
+    setLoadingPost(false);
+  }
+}, [id, user?.phone, router]);
+
+ 
+const loadComments = useCallback(async () => {
+  if (!id) return;
+
+  setLoadingComments(true);
+
+  try {
+    const res = await fetch(`${API}/posts/${id}/comments`);
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`loadComments ${res.status}: ${text}`);
+    }
+
+    const data = await res.json();
+    setComments(Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.error('loadComments:', e);
+    setComments([]);
+  } finally {
+    setLoadingComments(false);
+  }
+}, [id]);
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
@@ -206,27 +228,35 @@ export default function PostPage() {
     }
   }, [post, user?.phone, likePending]);
 
-  const handleComment = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !id) return;
-    setSendingComment(true);
-    setCommentError('');
-    try {
-      const res  = await fetch(`${API_BASE}/post/${id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: commentText.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка');
-      setCommentText('');
-      await loadComments();
-    } catch (e: unknown) {
-      setCommentError(e instanceof Error ? e.message : 'Ошибка');
-    } finally {
-      setSendingComment(false);
+const handleComment = useCallback(async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!commentText.trim() || !id) return;
+
+  setSendingComment(true);
+  setCommentError('');
+
+  try {
+    const res = await fetch(`${API}/posts/${id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: commentText.trim() }),
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      throw new Error(`sendComment ${res.status}: ${raw}`);
     }
-  }, [commentText, id, loadComments]);
+
+    await res.json();
+    setCommentText('');
+    await loadComments();
+  } catch (e: unknown) {
+    setCommentError(e instanceof Error ? e.message : 'Ошибка');
+  } finally {
+    setSendingComment(false);
+  }
+}, [commentText, id, loadComments]);
 
   // ─── Загрузка ──────────────────────────────────────────────────────────────
 
