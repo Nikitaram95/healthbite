@@ -1,9 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowLeft, Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+
+// ─── Типы ─────────────────────────────────────────────────────────────────────
 
 interface Post {
   postid: string;
@@ -14,6 +18,8 @@ interface Post {
   categoryid: string;
   author: string;
   createdat: string;
+  likes: number;
+  liked: boolean;
 }
 
 interface Comment {
@@ -24,233 +30,319 @@ interface Comment {
   createdat: string;
 }
 
-const API = 'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net/upload';
+const API_BASE = 'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
+
+const CATEGORIES: Record<string, string> = {
+  food:      'Питание',
+  mental:    'Ментальное',
+  sport:     'Спорт',
+  health:    'Здоровье',
+  lifestyle: 'Образ жизни',
+};
+
+function getCategoryLabel(key: string): string {
+  return CATEGORIES[key] ?? key;
+}
+
+function getRelativeTime(createdat: string): string {
+  if (!createdat) return '';
+  const ms = Number(createdat);
+  if (!ms || isNaN(ms)) return '';
+  const diff = Date.now() - ms;
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1)  return 'только что';
+  if (minutes < 60) return `${minutes} мин назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)   return `${hours} ч назад`;
+  const days = Math.floor(hours / 24);
+  if (days === 1)   return '1 д назад';
+  if (days < 7)     return `${days} д назад`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5)    return `${weeks} нед назад`;
+  const months = Math.floor(days / 30);
+  if (months < 12)  return `${months} мес назад`;
+  return `${Math.floor(months / 12)} г назад`;
+}
+
+function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
+  const initials = name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
+  const colors = ['#01696f','#437a22','#006494','#7a39bb','#d19900','#da7101','#a12c7b','#a13544'];
+  const color = colors[(name.charCodeAt(0) ?? 0) % colors.length];
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: size * 0.38, fontWeight: 600, flexShrink: 0 }} aria-label={name}>
+      {initials || '?'}
+    </div>
+  );
+}
+
+function SkeletonPost() {
+  return (
+    <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', border: '1px solid oklch(from var(--color-text) l c h / 0.08)' }}>
+      <div className="skeleton" style={{ aspectRatio: '16/9', width: '100%' }} />
+      <div style={{ padding: 20 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <div className="skeleton" style={{ width: 36, height: 36, borderRadius: '50%' }} />
+          <div style={{ flex: 1 }}>
+            <div className="skeleton skeleton-text" style={{ width: '35%', marginBottom: 6 }} />
+            <div className="skeleton skeleton-text" style={{ width: '20%', height: '0.75em' }} />
+          </div>
+        </div>
+        <div className="skeleton skeleton-text" style={{ width: '75%', height: '1.5em', marginBottom: 10 }} />
+        <div className="skeleton skeleton-text" />
+        <div className="skeleton skeleton-text" />
+        <div className="skeleton skeleton-text" style={{ width: '55%' }} />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonComments() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {[1, 2].map((i) => (
+        <div key={i} style={{ display: 'flex', gap: 10 }}>
+          <div className="skeleton" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: 6 }} />
+            <div className="skeleton skeleton-text" />
+            <div className="skeleton skeleton-text" style={{ width: '70%' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonStyles() {
+  return (
+    <style>{`
+      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+      .skeleton { background: linear-gradient(90deg, var(--color-surface-offset) 25%, var(--color-surface-dynamic) 50%, var(--color-surface-offset) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: var(--radius-sm); }
+      .skeleton-text { height: 1em; margin-bottom: 6px; }
+    `}</style>
+  );
+}
+
+const headerStyle: React.CSSProperties = { position: 'sticky', top: 0, zIndex: 50, background: 'oklch(from var(--color-bg) l c h / 0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid oklch(from var(--color-text) l c h / 0.07)' };
+const headerInner: React.CSSProperties = { maxWidth: 680, margin: '0 auto', padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
+const backBtnStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', color: 'var(--color-text-muted)', padding: 6, borderRadius: 'var(--radius-md)', background: 'none', border: 'none', cursor: 'pointer' };
+const logoStyle: React.CSSProperties = { textDecoration: 'none', fontWeight: 800, color: 'var(--color-primary)', fontSize: 'var(--text-base)', letterSpacing: '-0.02em' };
+const primaryBtnStyle: React.CSSProperties = { padding: '8px 18px', background: 'var(--color-primary)', color: '#fff', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-sm)', fontWeight: 600, border: 'none', cursor: 'pointer' };
 
 export default function PostPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [loadingPost, setLoadingPost] = useState(true);
-  const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [sendingComment, setSendingComment] = useState(false);
-  const [commentError, setCommentError] = useState('');
+  const [post, setPost]                       = useState<Post | null>(null);
+  const [loadingPost, setLoadingPost]         = useState(true);
+  const [likePending, setLikePending]         = useState(false);
+  const [comments, setComments]               = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(true);
+  const [commentText, setCommentText]         = useState('');
+  const [sendingComment, setSendingComment]   = useState(false);
+  const [commentError, setCommentError]       = useState('');
+  const [imgError, setImgError]               = useState(false);
 
-  useEffect(() => {
+  const loadPost = useCallback(async () => {
     if (!id) return;
-    loadPost();
-    loadComments();
-  }, [id]);
-
-  async function loadPost() {
     setLoadingPost(true);
     try {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'listposts' }),
-      });
-      const posts: Post[] = await res.json();
-      const found = posts.find(p => p.postid === id);
-      if (!found) {
-        router.push('/feed');
-        return;
-      }
-      setPost(found);
+      const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
+      const res = await fetch(`${API_BASE}/posts/${id}${qs}`);
+      if (res.status === 404) { router.push('/feed'); return; }
+      if (!res.ok) throw new Error('Ошибка загрузки');
+      setPost(await res.json());
     } catch (e) {
-      console.error('Load post error:', e);
+      console.error('loadPost:', e);
     } finally {
       setLoadingPost(false);
     }
-  }
+  }, [id, user?.phone, router]);
 
-  async function loadComments() {
+  const loadComments = useCallback(async () => {
+    if (!id) return;
+    setLoadingComments(true);
     try {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'listcomments', postId: id }),
-      });
+      const res = await fetch(`${API_BASE}/posts/${id}/comments`);
       const data = await res.json();
       setComments(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error('Load comments error:', e);
+      console.error('loadComments:', e);
+    } finally {
+      setLoadingComments(false);
     }
-  }
+  }, [id]);
 
-  async function handleComment(e: React.FormEvent) {
+  useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
+
+  const handleLike = useCallback(async () => {
+    if (!post || !user?.phone || likePending) return;
+    const wasLiked = post.liked;
+    setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
+    setLikePending(true);
+    try {
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: wasLiked ? 'unlikepost' : 'likepost', postId: post.postid, userId: user.phone }),
+      });
+      const data = await res.json();
+      setPost((p) => p ? { ...p, likes: data.likes, liked: data.liked } : p);
+    } catch {
+      setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
+    } finally {
+      setLikePending(false);
+    }
+  }, [post, user?.phone, likePending]);
+
+  const handleComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !id) return;
     setSendingComment(true);
     setCommentError('');
     try {
-      const res = await fetch(API, {
+      const res = await fetch(`${API_BASE}/posts/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'addcomment',
-          postId: id,
-          text: commentText.trim(),
-          author: user?.name || user?.phone || 'anonymous',
-        }),
+        body: JSON.stringify({ text: commentText.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка');
       setCommentText('');
       await loadComments();
-    } catch (e: any) {
-      setCommentError(e.message);
+    } catch (e: unknown) {
+      setCommentError(e instanceof Error ? e.message : 'Ошибка');
     } finally {
       setSendingComment(false);
     }
-  }
+  }, [commentText, id, loadComments]);
 
   if (loadingPost) {
     return (
-      <div style={styles.loadingPage}>
-        <div>Загрузка поста...</div>
+      <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
+        <header style={headerStyle}><div style={headerInner}><button onClick={() => router.back()} style={backBtnStyle}><ArrowLeft size={18} /></button><Link href="/" style={logoStyle}>HealthBite</Link><div style={{ width: 34 }} /></div></header>
+        <main style={{ maxWidth: 680, margin: '0 auto', padding: 16 }}><SkeletonPost /></main>
+        <SkeletonStyles />
       </div>
     );
   }
 
   if (!post) {
-    return <div>Пост не найден</div>;
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ marginBottom: 12, color: 'var(--color-text-muted)' }}>Пост не найден</p>
+          <button onClick={() => router.push('/feed')} style={primaryBtnStyle}>В ленту</button>
+        </div>
+      </div>
+    );
   }
 
+  const relTime  = getRelativeTime(post.createdat);
+  const catLabel = getCategoryLabel(post.categoryid);
+
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div style={styles.headerInner}>
-          <button style={styles.back} onClick={() => router.back()}>
-            ← Назад
-          </button>
-          <Link href="/" style={styles.logoLink}>
-            HealthBite
-          </Link>
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
+      <header style={headerStyle}>
+        <div style={headerInner}>
+          <button onClick={() => router.back()} style={backBtnStyle} aria-label="Назад"><ArrowLeft size={18} /></button>
+          <Link href="/" style={logoStyle}>HealthBite</Link>
+          <button style={{ color: 'var(--color-text-muted)', padding: 4, background: 'none', border: 'none', cursor: 'pointer' }} aria-label="Опции"><MoreHorizontal size={20} /></button>
         </div>
       </header>
 
-      <main style={styles.main}>
-        <article style={styles.article}>
-          {post.mediaurl && post.type === 'image' && (
-            <img
-              src={post.mediaurl}
-              alt={post.title}
-              style={styles.heroImg}
-              loading="lazy"
-            />
-          )}
-          {post.mediaurl && post.type === 'video' && (
-            <div style={styles.videoWrap}>
-              <video
-                src={post.mediaurl}
-                controls
-                style={styles.iframe}
-                title={post.title}
-              />
-            </div>
-          )}
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '16px', paddingBottom: 48 }}>
 
-          <div style={styles.content}>
-            <div style={styles.meta}>
-              <span style={styles.cat}>{post.categoryid}</span>
-              <span style={styles.date}>{post.createdat}</span>
-            </div>
-
-            <h1 style={styles.title}>{post.title}</h1>
-
-            <div style={styles.authorRow}>
-              <div style={styles.authorInfo}>
-                <div style={styles.authorAvatar}>
-                  {post.author.slice(0, 1).toUpperCase()}
+        {/* Пост */}
+        <article style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', border: '1px solid oklch(from var(--color-text) l c h / 0.08)', marginBottom: 16 }}>
+          {post.mediaurl && !imgError && (
+            post.type === 'video'
+              ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: 'var(--color-surface-offset)' }} />
+              : <div style={{ position: 'relative', aspectRatio: '16/9', background: 'var(--color-surface-offset)' }}>
+                  <Image src={post.mediaurl} alt={post.title} fill style={{ objectFit: 'cover' }} onError={() => setImgError(true)} sizes="(max-width:720px) 100vw,680px" priority />
                 </div>
-                <span style={styles.authorName}>{post.author}</span>
-              </div>
+          )}
 
-              <button
-                style={{ ...styles.likeBtn, ...(liked ? styles.likeBtnActive : {}) }}
-                onClick={() => {
-                  setLiked(v => !v);
-                  setLikesCount(v => liked ? v - 1 : v + 1);
-                }}
-                aria-label={liked ? 'Убрать лайк' : 'Поставить лайк'}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                <span>{liked ? 'Unlike' : 'Like'}</span>
-                <span style={styles.likeCount}>{likesCount}</span>
-              </button>
+          <div style={{ padding: '20px 16px 16px' }}>
+            {/* Автор */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <AuthorAvatar name={post.author} size={40} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>{post.author}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary)', fontWeight: 600, background: 'var(--color-primary-highlight)', borderRadius: 'var(--radius-full)', padding: '2px 8px' }}>{catLabel}</span>
+                  {relTime && <><span style={{ color: 'var(--color-text-faint)', fontSize: 12 }}>·</span><span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{relTime}</span></>}
+                </div>
+              </div>
             </div>
 
-            <div style={styles.description}>{post.description}</div>
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1.25, marginBottom: 12 }}>{post.title}</h1>
+
+            {post.description && (
+              <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: 16, whiteSpace: 'pre-wrap', maxWidth: 'none' }}>{post.description}</p>
+            )}
+
+            {/* Лайк */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 12, borderTop: '1px solid oklch(from var(--color-text) l c h / 0.07)' }}>
+              <button onClick={handleLike} disabled={likePending || !user} aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, color: post.liked ? 'var(--color-notification)' : 'var(--color-text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600, padding: '6px 0', opacity: likePending ? 0.6 : 1, transition: 'color 180ms ease', background: 'none', border: 'none', cursor: user ? 'pointer' : 'default' }}>
+                <Heart size={20} fill={post.liked ? 'currentColor' : 'none'} strokeWidth={post.liked ? 0 : 2} />
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+                <MessageCircle size={20} />
+                <span>{comments.length > 0 ? `${comments.length} ${comments.length === 1 ? 'комментарий' : 'комментариев'}` : 'Комментарии'}</span>
+              </div>
+            </div>
           </div>
         </article>
 
-        <section style={styles.commentsSection}>
-          <h2 style={styles.commentsTitle}>
-            Комментарии{comments.length > 0 && ` (${comments.length})`}
+        {/* Комментарии */}
+        <section style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '20px 16px', border: '1px solid oklch(from var(--color-text) l c h / 0.08)', boxShadow: 'var(--shadow-sm)' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 16 }}>
+            Комментарии{comments.length > 0 && <span style={{ fontSize: 'var(--text-sm)', fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 6 }}>{comments.length}</span>}
           </h2>
 
           {user ? (
-            <form onSubmit={handleComment} style={styles.commentForm}>
-              <div style={styles.commentInputWrap}>
-                <div style={styles.commentAvatar}>
-                  {(user.name || user.phone || 'A').slice(0, 1).toUpperCase()}
-                </div>
-                <textarea
-                  placeholder="Напиши комментарий..."
-                  value={commentText}
-                  onChange={e => setCommentText(e.target.value)}
-                  rows={2}
-                  maxLength={500}
-                  style={styles.commentTextarea}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      handleComment(e as any);
-                    }
-                  }}
-                />
+            <form onSubmit={handleComment} style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                <AuthorAvatar name={user.name || user.phone || 'A'} size={32} />
+                <textarea placeholder="Напиши комментарий..." value={commentText} onChange={(e) => setCommentText(e.target.value)} rows={2} maxLength={500}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleComment(e as unknown as React.FormEvent); }}
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', fontSize: 'var(--text-sm)', resize: 'none', fontFamily: 'inherit', outline: 'none', background: 'var(--color-surface-offset)', color: 'var(--color-text)', lineHeight: 1.5 }} />
               </div>
-              {commentError && <p style={styles.commentError}>{commentError}</p>}
-              <div style={styles.commentFormFooter}>
-                <span style={styles.commentHint}>Ctrl+Enter</span>
-                <button
-                  type="submit"
-                  style={styles.commentSubmit}
-                  disabled={sendingComment || !commentText.trim()}
-                >
+              {commentError && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', marginBottom: 6 }}>{commentError}</p>}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 42 }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>Ctrl+Enter</span>
+                <button type="submit" disabled={sendingComment || !commentText.trim()} style={{ ...primaryBtnStyle, opacity: sendingComment || !commentText.trim() ? 0.5 : 1, cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer' }}>
                   {sendingComment ? '...' : 'Отправить'}
                 </button>
               </div>
             </form>
           ) : (
-            <div style={styles.loginPrompt}>
-              <Link href="/login" style={styles.loginPromptLink}>
-                Войди чтобы комментировать
-              </Link>
+            <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
+              <Link href="/login" style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: 'var(--text-sm)', textDecoration: 'none' }}>Войди, чтобы комментировать</Link>
             </div>
           )}
 
-          {comments.length === 0 ? (
-            <div style={styles.noComments}>Пока нет комментариев</div>
+          {loadingComments ? <SkeletonComments /> : comments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--color-text-muted)' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+              <p style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>Пока нет комментариев</p>
+              <p style={{ fontSize: 'var(--text-sm)' }}>Будь первым, кто оставит отзыв</p>
+            </div>
           ) : (
-            <div style={styles.commentsList}>
-              {comments.map(c => (
-                <div key={c.commentid} style={styles.commentItem}>
-                  <div style={styles.commentAvatar}>
-                    {c.author.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div style={styles.commentBody}>
-                    <div style={styles.commentHeader}>
-                      <span style={styles.commentAuthor}>{c.author}</span>
-                      <span style={styles.commentDate}>{c.createdat}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {comments.map((c) => (
+                <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
+                  <AuthorAvatar name={c.author} size={32} />
+                  <div style={{ flex: 1, background: 'var(--color-surface-offset)', borderRadius: 'var(--radius-lg)', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>{c.author}</span>
+                      {getRelativeTime(c.createdat) && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{getRelativeTime(c.createdat)}</span>}
                     </div>
-                    <p style={styles.commentText}>{c.text}</p>
+                    <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text)', lineHeight: 1.6, maxWidth: 'none' }}>{c.text}</p>
                   </div>
                 </div>
               ))}
@@ -258,55 +350,9 @@ export default function PostPage() {
           )}
         </section>
       </main>
+      <SkeletonStyles />
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100dvh', background: '#f7f6f2', fontFamily: 'system-ui, sans-serif' },
-  loadingPage: { minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f6f2', color: '#01696f' },
-  header: { background: '#fff', borderBottom: '1px solid #e8e6e1', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner: { maxWidth: '720px', margin: '0 auto', padding: '0 1rem', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  back: { display: 'flex', alignItems: 'center', gap: '.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.875rem', color: '#7a7974' },
-  logoLink: { textDecoration: 'none', fontWeight: 700, color: '#01696f', fontSize: '1rem' },
-  main: { maxWidth: '720px', margin: '0 auto', padding: '0 0 4rem' },
-  article: { background: '#fff', borderRadius: '0 0 16px 16px', overflow: 'hidden', marginBottom: '1rem' },
-  heroImg: { width: '100%', maxHeight: '420px', objectFit: 'cover', display: 'block' },
-  videoWrap: { position: 'relative', paddingBottom: '56.25%', height: 0 },
-  iframe: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' },
-  content: { padding: '1.5rem 1.25rem 1.25rem' },
-  meta: { display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '.75rem' },
-  cat: { fontSize: '.75rem', fontWeight: 600, color: '#01696f', textTransform: 'uppercase', letterSpacing: '.05em' },
-  date: { fontSize: '.75rem', color: '#bab9b4' },
-  title: { fontSize: 'clamp(1.375rem, 1rem + 1.5vw, 1.875rem)', fontWeight: 800, color: '#28251d', lineHeight: 1.25, marginBottom: '1rem' },
-  authorRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' },
-  authorInfo: { display: 'flex', alignItems: 'center', gap: '.5rem' },
-  authorAvatar: { width: '32px', height: '32px', borderRadius: '50%', background: '#e6f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.875rem', fontWeight: 700, color: '#01696f' },
-  authorName: { fontSize: '.875rem', color: '#7a7974', fontWeight: 500 },
-  likeBtn: { display: 'flex', alignItems: 'center', gap: '.375rem', background: 'none', border: '1.5px solid #d4d1ca', borderRadius: '999px', padding: '.375rem .875rem', cursor: 'pointer', fontSize: '.9375rem', color: '#7a7974', fontWeight: 600, transition: 'all 0.2s' },
-  likeBtnActive: { borderColor: '#e05c8a', color: '#e05c8a', background: '#fdf2f7' },
-  likeCount: { fontVariantNumeric: 'tabular-nums', fontWeight: 700, minWidth: '1.5ch' },
-  description: { fontSize: '1rem', color: '#3d3a32', lineHeight: 1.7, whiteSpace: 'pre-wrap' },
-  commentsSection: { background: '#fff', borderRadius: '16px', padding: '1.25rem', margin: '0 0 1rem' },
-  commentsTitle: { fontSize: '1rem', fontWeight: 700, color: '#28251d', marginBottom: '1rem' },
-  commentForm: { marginBottom: '1.5rem' },
-  commentInputWrap: { display: 'flex', gap: '.75rem', marginBottom: '.5rem' },
-  commentAvatar: { width: '32px', height: '32px', borderRadius: '50%', background: '#e6f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.875rem', fontWeight: 700, color: '#01696f', flexShrink: 0 },
-  commentTextarea: { flex: 1, padding: '.625rem .875rem', borderRadius: '12px', border: '1px solid #dcd9d5', fontSize: '.9375rem', resize: 'none', fontFamily: 'inherit', outline: 'none' },
-  commentError: { fontSize: '.8125rem', color: '#a12c7b', margin: '0 0 .5rem' },
-  commentFormFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '44px' },
-  commentHint: { fontSize: '.75rem', color: '#bab9b4' },
-  commentSubmit: { padding: '.375rem 1rem', borderRadius: '999px', background: '#01696f', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '.875rem', fontWeight: 600 },
-  loginPrompt: { textAlign: 'center', padding: '1rem', marginBottom: '1rem' },
-  loginPromptLink: { color: '#01696f', fontWeight: 600, textDecoration: 'none' },
-  noComments: { textAlign: 'center', padding: '2rem 1rem', color: '#bab9b4', fontSize: '.9375rem' },
-  commentsList: { display: 'flex', flexDirection: 'column', gap: '.75rem' },
-  commentItem: { display: 'flex', gap: '.75rem' },
-  commentBody: { flex: 1 },
-  commentHeader: { display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.25rem' },
-  commentAuthor: { fontSize: '.875rem', fontWeight: 600, color: '#28251d' },
-  commentDate: { fontSize: '.75rem', color: '#bab9b4' },
-  commentText: { margin: 0, fontSize: '.9375rem', color: '#3d3a32', lineHeight: 1.6 },
-};
 
 export const dynamic = 'force-dynamic';
