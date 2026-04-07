@@ -161,7 +161,7 @@ const loadPost = useCallback(async () => {
 
   try {
     const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
-    const res = await fetch(`${API}/posts/${id}${qs}`);
+    const res = await fetch(`${API}/post/${id}${qs}`);
 
     if (res.status === 404) {
       router.push('/feed');
@@ -189,7 +189,7 @@ const loadComments = useCallback(async () => {
   setLoadingComments(true);
 
   try {
-    const res = await fetch(`${API}/posts/${id}/comments`);
+    const res = await fetch(`${API}/post/${id}/comments`);
 
     if (!res.ok) {
       const text = await res.text();
@@ -237,7 +237,7 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
   setCommentError('');
 
   try {
-    const res = await fetch(`${API}/posts/${id}/comments`, {
+    const res = await fetch(`${API}/post/${id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: commentText.trim() }),
