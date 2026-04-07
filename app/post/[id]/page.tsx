@@ -214,7 +214,7 @@ const loadComments = useCallback(async () => {
     setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
     setLikePending(true);
     try {
-      const res  = await fetch(`${API_BASE}/upload`, {
+   const res  = await fetch(`${API}/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: wasLiked ? 'unlikepost' : 'likepost', postId: post.postid, userId: user.phone }),
