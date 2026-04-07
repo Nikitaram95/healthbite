@@ -212,7 +212,7 @@ export default function PostPage() {
     setSendingComment(true);
     setCommentError('');
     try {
-      const res  = await fetch(`${API_BASE}/posts/${id}/comments`, {
+      const res  = await fetch(`${API_BASE}/post/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: commentText.trim() }),
