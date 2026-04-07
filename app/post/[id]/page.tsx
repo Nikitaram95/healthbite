@@ -208,25 +208,33 @@ const loadComments = useCallback(async () => {
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
-  const handleLike = useCallback(async () => {
-    if (!post || !user?.phone || likePending) return;
-    const wasLiked = post.liked;
-    setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
-    setLikePending(true);
-    try {
-   const res  = await fetch(`${API}/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: wasLiked ? 'unlikepost' : 'likepost', postId: post.postid, userId: user.phone }),
-      });
-      const data = await res.json();
-      setPost((p) => p ? { ...p, likes: data.likes, liked: data.liked } : p);
-    } catch {
-      setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
-    } finally {
-      setLikePending(false);
-    }
-  }, [post, user?.phone, likePending]);
+const handleLike = useCallback(async () => {
+  if (!post || !user?.phone || likePending) return;
+  
+  const wasLiked = post.liked;
+  // Оптимистично обновляем UI
+  setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
+  setLikePending(true);
+  
+  try {
+    const res = await fetch(`${API}/post/${post.postid}/like`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.phone }),  // ← Только userId нужен
+    });
+    
+    if (!res.ok) throw new Error(`Like error: ${res.status}`);
+    
+    const data = await res.json();
+    setPost((p) => p ? { ...p, likes: data.likes, liked: data.liked } : p);
+  } catch (e) {
+    console.error('Like failed:', e);
+    // Откатываем UI
+    setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
+  } finally {
+    setLikePending(false);
+  }
+}, [post, user?.phone, likePending, id]);  // ← Добавь id в зависимости
 
 const handleComment = useCallback(async (e: React.FormEvent) => {
   e.preventDefault();
@@ -318,15 +326,23 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
 
         {/* Пост */}
         <article style={{ ...s.card, marginBottom: 16 }}>
-          {post.mediaurl && !imgError && (
-            post.type === 'video'
-              ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
-              : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-                  <Image src={post.mediaurl} alt={post.title} fill style={{ objectFit: 'cover' }}
-                    onError={() => setImgError(true)} sizes="(max-width:720px) 100vw,680px" priority />
-                  <div style={s.mediaOverlay} />
-                </div>
-          )}
+{post.mediaurl && !imgError && (
+  post.type === 'video'
+    ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
+    : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+        <Image 
+          src={post.mediaurl} 
+          alt={post.title} 
+          fill 
+          style={{ objectFit: 'cover' }}
+          crossOrigin="anonymous"  // ← ДОБАВЬ ЭТО
+          onError={() => setImgError(true)} 
+          sizes="(max-width:720px) 100vw,680px" 
+          priority 
+        />
+        <div style={s.mediaOverlay} />
+      </div>
+)}
 
           <div style={{ padding: '20px 16px 16px' }}>
             {/* Автор */}
