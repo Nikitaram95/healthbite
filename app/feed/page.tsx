@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -22,12 +21,12 @@ interface Post {
 // ─── Категории ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: 'all',       label: 'Все'          },
-  { key: 'food',      label: 'Питание'      },
-  { key: 'mental',    label: 'Ментальное'   },
-  { key: 'sport',     label: 'Спорт'        },
-  { key: 'health',    label: 'Здоровье'     },
-  { key: 'lifestyle', label: 'Образ жизни'  },
+  { key: 'all',       label: 'Все'         },
+  { key: 'food',      label: 'Питание'     },
+  { key: 'mental',    label: 'Ментальное'  },
+  { key: 'sport',     label: 'Спорт'       },
+  { key: 'health',    label: 'Здоровье'    },
+  { key: 'lifestyle', label: 'Образ жизни' },
 ];
 
 const CAT_COLORS: Record<string, string> = {
@@ -100,7 +99,11 @@ async function toggleLike(
   const res = await fetch(`${API}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: isLiked ? 'unlikepost' : 'likepost', postId: postid, userId }),
+    body: JSON.stringify({
+      action: isLiked ? 'unlikepost' : 'likepost',
+      postId: postid,
+      userId,
+    }),
   });
   if (!res.ok) throw new Error('Ошибка лайка');
   return res.json();
@@ -111,13 +114,13 @@ async function toggleLike(
 function SkeletonCard() {
   return (
     <div style={s.card}>
-      <div style={{ aspectRatio: '16/9', width: '100%', background: 'rgba(255,255,255,.05)', animation: 'shimmer 1.5s ease-in-out infinite', backgroundSize: '200% 100%' }} />
+      <div style={{ aspectRatio: '16/9', width: '100%', background: 'rgba(255,255,255,.05)' }} />
       <div style={{ padding: '1rem 1.125rem' }}>
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,.07)', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ height: '0.85em', width: '40%', background: 'rgba(255,255,255,.07)', borderRadius: 4, marginBottom: 6 }} />
-            <div style={{ height: '0.7em', width: '25%', background: 'rgba(255,255,255,.05)', borderRadius: 4 }} />
+            <div style={{ height: '0.7em',  width: '25%', background: 'rgba(255,255,255,.05)', borderRadius: 4 }} />
           </div>
         </div>
         <div style={{ height: '0.85em', width: '80%', background: 'rgba(255,255,255,.07)', borderRadius: 4, marginBottom: 8 }} />
@@ -131,41 +134,64 @@ function SkeletonCard() {
 // ─── Карточка поста ───────────────────────────────────────────────────────────
 
 interface PostCardProps {
-  post: Post;
-  onLike: (postid: string, liked: boolean) => void;
-  onOpenComments: (postid: string) => void;
+  post:           Post;
+  userId:         string;
+  onLike:         (postid: string, liked: boolean) => void;
+  onNavigate:     (postid: string) => void;
+  onComments:     (postid: string) => void;
 }
 
-function PostCard({ post, onLike, onOpenComments }: PostCardProps) {
-  const [popping, setPopping] = useState(false);
+function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProps) {
+  const [popping,  setPopping]  = useState(false);
   const [imgError, setImgError] = useState(false);
   const relTime  = getRelativeTime(post.createdat);
   const catLabel = getCategoryLabel(post.categoryid);
   const cat      = getCatStyle(post.categoryid);
 
-  function handleLike() {
+  function handleLike(e: React.MouseEvent) {
+    // останавливаем всплытие — иначе клик уйдёт на карточку
+    e.stopPropagation();
+    if (!userId) return;
     setPopping(true);
     onLike(post.postid, post.liked);
     setTimeout(() => setPopping(false), 300);
   }
 
+  function handleComments(e: React.MouseEvent) {
+    e.stopPropagation();
+    onComments(post.postid);
+  }
+
   return (
-    <article style={s.card}>
+    // Вся карточка кликабельна → редирект на пост
+    <article
+      style={{ ...s.card, cursor: 'pointer' }}
+      onClick={() => onNavigate(post.postid)}
+    >
       {/* Медиа */}
       {post.mediaurl && !imgError && (
-        <Link href={`/post/${post.postid}`} style={{ display: 'block' }}>
-          <div style={s.mediaWrap}>
-            {post.type === 'video' ? (
-              <video src={post.mediaurl} style={s.cardImg as React.CSSProperties}
-                muted playsInline controls />
-            ) : (
-              <Image src={post.mediaurl} alt={post.title} fill
-                style={{ objectFit: 'cover' }} sizes="(max-width:640px) 100vw, 600px"
-                onError={() => setImgError(true)} />
-            )}
-            <div style={s.mediaOverlay} />
-          </div>
-        </Link>
+        <div style={s.mediaWrap}>
+          {post.type === 'video' ? (
+            // Останавливаем клик на видео чтобы controls работали
+            <video
+              src={post.mediaurl}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              muted
+              playsInline
+              controls
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            // Обычный <img> — next/image с fill ломает aspect-ratio без явной высоты
+            <img
+              src={post.mediaurl}
+              alt={post.title}
+              onError={() => setImgError(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          )}
+          <div style={s.mediaOverlay} />
+        </div>
       )}
 
       <div style={s.cardBody}>
@@ -191,7 +217,7 @@ function PostCard({ post, onLike, onOpenComments }: PostCardProps) {
         </div>
 
         {/* Заголовок */}
-        <Link href={`/post/${post.postid}`} style={s.cardTitle}>{post.title}</Link>
+        <p style={s.cardTitle}>{post.title}</p>
 
         {/* Описание */}
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
@@ -204,16 +230,18 @@ function PostCard({ post, onLike, onOpenComments }: PostCardProps) {
             onClick={handleLike}
             aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24"
+            <svg
+              width="14" height="14" viewBox="0 0 24 24"
               fill={post.liked ? 'currentColor' : 'none'}
-              stroke="currentColor" strokeWidth="2">
+              stroke="currentColor" strokeWidth="2"
+            >
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
             <span>{post.likes}</span>
           </button>
 
           <button
-            onClick={() => onOpenComments(post.postid)}
+            onClick={handleComments}
             aria-label="Комментарии"
             style={s.commentBtn}
           >
@@ -231,11 +259,13 @@ function PostCard({ post, onLike, onOpenComments }: PostCardProps) {
 // ─── Главный экран ────────────────────────────────────────────────────────────
 
 interface FeedScreenProps {
-  userId?: string;
+  userId?:         string;
   onOpenComments?: (postid: string) => void;
 }
 
 export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenProps) {
+  const router = useRouter();
+
   const [posts,          setPosts]          = useState<Post[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState<string | null>(null);
@@ -243,7 +273,7 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
   const [searchQuery,    setSearchQuery]    = useState('');
   const [likePending,    setLikePending]    = useState<Set<string>>(new Set());
 
-  // ─── Загрузка ───────────────────────────────────────────────────────────────
+  // ─── Загрузка ─────────────────────────────────────────────────────────────
 
   const loadPosts = useCallback(async (category: string) => {
     setLoading(true);
@@ -261,11 +291,12 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
 
   useEffect(() => { loadPosts(activeCategory); }, [activeCategory, loadPosts]);
 
-  // ─── Лайк ───────────────────────────────────────────────────────────────────
+  // ─── Лайк ─────────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async (postid: string, currentLiked: boolean) => {
     if (!userId || likePending.has(postid)) return;
 
+    // Оптимистичное обновление
     setPosts(prev => prev.map(p =>
       p.postid === postid
         ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
@@ -275,10 +306,12 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
 
     try {
       const result = await toggleLike(postid, userId, currentLiked);
+      // Синхронизируем с сервером
       setPosts(prev => prev.map(p =>
         p.postid === postid ? { ...p, likes: result.likes, liked: result.liked } : p
       ));
     } catch {
+      // Откат при ошибке
       setPosts(prev => prev.map(p =>
         p.postid === postid
           ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
@@ -289,7 +322,22 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
     }
   }, [userId, likePending]);
 
-  // ─── Фильтрация ─────────────────────────────────────────────────────────────
+  // ─── Навигация ────────────────────────────────────────────────────────────
+
+  function handleNavigate(postid: string) {
+    router.push(`/post/${postid}`);
+  }
+
+  function handleComments(postid: string) {
+    if (onOpenComments) {
+      onOpenComments(postid);
+    } else {
+      // скролл к комментариям на странице поста
+      router.push(`/post/${postid}#comments`);
+    }
+  }
+
+  // ─── Фильтрация ───────────────────────────────────────────────────────────
 
   const filteredPosts = searchQuery.trim()
     ? posts.filter(p =>
@@ -299,7 +347,7 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
       )
     : posts;
 
-  // ─── Рендер ─────────────────────────────────────────────────────────────────
+  // ─── Рендер ───────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -311,7 +359,6 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
         {/* Шапка */}
         <header style={s.header}>
           <div style={s.headerInner}>
-            {/* Поиск */}
             <div style={s.searchWrap}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8aa3bf" strokeWidth="2" style={{ flexShrink: 0 }}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -324,7 +371,11 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
                 style={s.searchInput}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} style={{ color: '#8aa3bf', lineHeight: 1, fontSize: 18 }} aria-label="Очистить">×</button>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{ color: '#8aa3bf', lineHeight: 1, fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  aria-label="Очистить"
+                >×</button>
               )}
             </div>
           </div>
@@ -340,10 +391,7 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setActiveCategory(key)}
-                    style={{
-                      ...s.catChip,
-                      ...(isActive ? s.catChipActive : {}),
-                    }}
+                    style={{ ...s.catChip, ...(isActive ? s.catChipActive : {}) }}
                   >
                     {label}
                   </button>
@@ -355,15 +403,12 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
 
         {/* Контент */}
         <main style={s.main}>
-
-          {/* Загрузка */}
           {loading && (
             <div style={s.grid}>
               {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           )}
 
-          {/* Ошибка */}
           {!loading && error && (
             <div style={s.center}>
               <p style={{ color: '#ff8e8e', marginBottom: 12 }}>{error}</p>
@@ -373,7 +418,6 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
             </div>
           )}
 
-          {/* Пусто */}
           {!loading && !error && filteredPosts.length === 0 && (
             <div style={{ ...s.center, flexDirection: 'column', gap: '1rem' }}>
               <div style={s.emptyIcon}>
@@ -390,20 +434,20 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
             </div>
           )}
 
-          {/* Посты */}
           {!loading && !error && filteredPosts.length > 0 && (
             <div style={s.grid}>
               {filteredPosts.map(post => (
                 <PostCard
                   key={post.postid}
                   post={post}
+                  userId={userId}
                   onLike={handleLike}
-                  onOpenComments={onOpenComments ?? (() => {})}
+                  onNavigate={handleNavigate}
+                  onComments={handleComments}
                 />
               ))}
             </div>
           )}
-
         </main>
       </div>
     </>
@@ -511,12 +555,13 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(255,255,255,.07)',
     borderRadius: 18, overflow: 'hidden',
     boxShadow: '0 8px 32px rgba(0,0,0,.35)',
+    transition: 'border-color .18s ease, box-shadow .18s ease',
   },
   mediaWrap: {
-    position: 'relative', aspectRatio: '16/9', overflow: 'hidden',
-  },
-  cardImg: {
-    width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+    position: 'relative',
+    aspectRatio: '16/9',
+    overflow: 'hidden',
+    background: 'rgba(0,0,0,.3)',
   },
   mediaOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 48,
@@ -540,7 +585,7 @@ const s: Record<string, React.CSSProperties> = {
   catBadge: {
     display: 'inline-block', padding: '.15rem .6rem',
     borderRadius: 999, fontSize: '.6875rem', fontWeight: 700,
-    letterSpacing: '.04em', textTransform: 'uppercase',
+    letterSpacing: '.04em', textTransform: 'uppercase' as const,
   },
   cardDate: {
     fontSize: '.75rem', color: '#8aa3bf',
@@ -548,16 +593,20 @@ const s: Record<string, React.CSSProperties> = {
   cardTitle: {
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '.9375rem', fontWeight: 700,
-    color: '#dceaff', textDecoration: 'none',
+    color: '#dceaff',
     lineHeight: 1.35, marginBottom: 8,
-    overflow: 'hidden', display: '-webkit-box',
-    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+    display: '-webkit-box' as unknown as React.CSSProperties['display'],
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical' as const,
   },
   cardDesc: {
     fontSize: '.8125rem', color: '#8aa3bf',
     lineHeight: 1.6, marginBottom: 12,
-    display: '-webkit-box', WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical', overflow: 'hidden',
+    overflow: 'hidden',
+    display: '-webkit-box' as unknown as React.CSSProperties['display'],
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical' as const,
   },
   cardFooter: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
