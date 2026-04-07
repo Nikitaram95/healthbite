@@ -48,76 +48,86 @@ export default function UploadPage() {
     if (fileRef.current) fileRef.current.value = '';
   }
 
- async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  if (!title.trim()) { setError('Введите заголовок'); return; }
-  setError('');
-  setLoading(true);
-  try {
-    const token = getToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setError('Введите заголовок'); return; }
+    setError('');
+    setLoading(true);
 
-    let videoPublicUrl = '';
+    try {
+      const token = getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
 
-    // Если видео — сначала получаем presigned URL и загружаем напрямую в S3
-    if (file && isVideo) {
-      const urlRes = await fetch(`${API}/upload`, {
+      let mediaurl = '';
+
+      // ── Видео: получаем presigned URL → загружаем напрямую в S3 ──
+      if (file && isVideo) {
+        const urlRes = await fetch(`${API}/upload`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action:   'getvideouploadurl',   // ← имя из бэкенда
+            filename: file.name,
+          }),
+        });
+        const urlData = await urlRes.json();
+        if (!urlRes.ok) throw new Error(urlData.error || 'Ошибка получения URL');
+
+        const uploadRes = await fetch(urlData.uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type },
+        });
+        if (!uploadRes.ok) throw new Error('Ошибка загрузки видео в S3');
+        mediaurl = urlData.publicUrl;
+      }
+
+      // ── Картинка: конвертируем в base64 → отдаём бэкенду ──
+      if (file && !isVideo) {
+        const b64 = await toBase64(file);
+        // Загружаем картинку через отдельный action
+        const imgRes = await fetch(`${API}/upload`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action:      'uploadimage',      // ← см. новый action ниже
+            imageBase64: b64,
+            imageName:   file.name,
+            imageMime:   file.type,
+          }),
+        });
+        const imgData = await imgRes.json();
+        if (!imgRes.ok) throw new Error(imgData.error || 'Ошибка загрузки картинки');
+        mediaurl = imgData.publicUrl;
+      }
+
+      // ── Создаём пост ──
+      const res = await fetch(`${API}/upload`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          action:   'get_video_upload_url',
-          filename: file.name,
-          fileSize: file.size,
+          action:      'addpost',            // ← имя из бэкенда
+          title:       title.trim(),
+          description: description.trim(),
+          categoryid:  category,
+          mediaurl:    mediaurl,
+          type:        isVideo ? 'video' : (file ? 'image' : 'text'),
         }),
       });
-      const urlData = await urlRes.json();
-      if (!urlRes.ok) throw new Error(urlData.error || 'Ошибка получения URL');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка при публикации');
 
-      // Загружаем видео напрямую в S3
-      const uploadRes = await fetch(urlData.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
-      if (!uploadRes.ok) throw new Error('Ошибка загрузки видео в S3');
-      videoPublicUrl = urlData.publicUrl;
+      router.push(`/post/${data.postid}`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-
-    // Создаём пост
-    const postBody: Record<string, string> = {
-      action:      'create_post',   // ← обязательное поле!
-      title:       title.trim(),
-      description: description.trim(),
-      categoryid:  category,
-      author:      user?.name || user?.phone || 'anonymous',
-    };
-
-    if (videoPublicUrl) {
-      postBody.videoPublicUrl = videoPublicUrl;
-    } else if (file && !isVideo) {
-      const b64 = await toBase64(file);
-      postBody.imageBase64 = b64;
-      postBody.imageName   = file.name;
-      postBody.imageMime   = file.type;
-    }
-
-    const res = await fetch(`${API}/upload`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(postBody),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Ошибка при публикации');
-    router.push(`/post/${data.postid}`);   // ← postid (строчные), не postId
-  } catch (e: any) {
-    setError(e.message);
-  } finally {
-    setLoading(false);
   }
-}
+
   return (
     <div style={s.page}>
       <header style={s.header}>
@@ -136,7 +146,6 @@ export default function UploadPage() {
       <main style={s.main}>
         <form onSubmit={handleSubmit} style={s.form} noValidate>
 
-          {/* Файл */}
           <div style={s.fg}>
             <label style={s.label}>Медиафайл</label>
             {!file ? (
@@ -166,7 +175,6 @@ export default function UploadPage() {
             <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleFile}/>
           </div>
 
-          {/* Заголовок */}
           <div style={s.fg}>
             <label style={s.label} htmlFor="title">
               Заголовок <span style={{ color: '#e05c8a' }}>*</span>
@@ -180,7 +188,6 @@ export default function UploadPage() {
             <span style={s.counter}>{title.length} / 120</span>
           </div>
 
-          {/* Описание */}
           <div style={s.fg}>
             <label style={s.label} htmlFor="desc">Описание</label>
             <textarea
@@ -191,7 +198,6 @@ export default function UploadPage() {
             <span style={s.counter}>{description.length} / 1000</span>
           </div>
 
-          {/* Категория */}
           <div style={s.fg}>
             <label style={s.label}>Категория</label>
             <div style={s.catGrid}>
@@ -240,28 +246,28 @@ function Spinner() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page:        { minHeight: '100dvh', background: '#f7f6f2', fontFamily: 'system-ui,sans-serif' },
-  header:      { background: '#fff', borderBottom: '1px solid #e8e6e1', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner: { maxWidth: 640, margin: '0 auto', padding: '0 1rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  back:        { display: 'flex', alignItems: 'center', gap: '.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.875rem', color: '#7a7974', width: 80 },
-  headerTitle: { fontSize: '1rem', fontWeight: 700, color: '#28251d' },
-  main:        { maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem 4rem' },
-  form:        { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
-  fg:          { display: 'flex', flexDirection: 'column', gap: '.375rem' },
-  label:       { fontSize: '.875rem', fontWeight: 500, color: '#28251d' },
-  dropzone:    { border: '2px dashed #d4d1ca', borderRadius: 12, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem', cursor: 'pointer', background: '#fafaf8', width: '100%' },
-  dzText:      { fontSize: '.9375rem', fontWeight: 500, color: '#28251d' },
-  dzHint:      { fontSize: '.8125rem', color: '#bab9b4' },
-  previewWrap: { position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' },
-  previewMedia:{ width: '100%', maxHeight: 320, objectFit: 'cover' as const, display: 'block' },
-  removeBtn:   { position: 'absolute', top: '.5rem', right: '.5rem', background: 'rgba(0,0,0,.65)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' },
-  fileName:    { position: 'absolute', bottom: '.5rem', left: '.5rem', fontSize: '.75rem', color: '#fff', background: 'rgba(0,0,0,.5)', padding: '.2rem .5rem', borderRadius: 6 },
-  input:       { height: 48, padding: '0 .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '1rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  textarea:    { padding: '.75rem .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '.9375rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', resize: 'vertical' as const, fontFamily: 'inherit', boxSizing: 'border-box' as const, lineHeight: 1.6 },
-  counter:     { fontSize: '.75rem', color: '#bab9b4', textAlign: 'right' as const },
-  catGrid:     { display: 'flex', flexWrap: 'wrap' as const, gap: '.5rem' },
-  catChip:     { padding: '.375rem .875rem', borderRadius: 999, border: '1.5px solid #d4d1ca', background: 'none', fontSize: '.875rem', color: '#7a7974', cursor: 'pointer', fontWeight: 500 },
+  page:         { minHeight: '100dvh', background: '#f7f6f2', fontFamily: 'system-ui,sans-serif' },
+  header:       { background: '#fff', borderBottom: '1px solid #e8e6e1', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner:  { maxWidth: 640, margin: '0 auto', padding: '0 1rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  back:         { display: 'flex', alignItems: 'center', gap: '.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.875rem', color: '#7a7974', width: 80 },
+  headerTitle:  { fontSize: '1rem', fontWeight: 700, color: '#28251d' },
+  main:         { maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem 4rem' },
+  form:         { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
+  fg:           { display: 'flex', flexDirection: 'column', gap: '.375rem' },
+  label:        { fontSize: '.875rem', fontWeight: 500, color: '#28251d' },
+  dropzone:     { border: '2px dashed #d4d1ca', borderRadius: 12, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem', cursor: 'pointer', background: '#fafaf8', width: '100%' },
+  dzText:       { fontSize: '.9375rem', fontWeight: 500, color: '#28251d' },
+  dzHint:       { fontSize: '.8125rem', color: '#bab9b4' },
+  previewWrap:  { position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' },
+  previewMedia: { width: '100%', maxHeight: 320, objectFit: 'cover' as const, display: 'block' },
+  removeBtn:    { position: 'absolute', top: '.5rem', right: '.5rem', background: 'rgba(0,0,0,.65)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' },
+  fileName:     { position: 'absolute', bottom: '.5rem', left: '.5rem', fontSize: '.75rem', color: '#fff', background: 'rgba(0,0,0,.5)', padding: '.2rem .5rem', borderRadius: 6 },
+  input:        { height: 48, padding: '0 .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '1rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
+  textarea:     { padding: '.75rem .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '.9375rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', resize: 'vertical' as const, fontFamily: 'inherit', boxSizing: 'border-box' as const, lineHeight: 1.6 },
+  counter:      { fontSize: '.75rem', color: '#bab9b4', textAlign: 'right' as const },
+  catGrid:      { display: 'flex', flexWrap: 'wrap' as const, gap: '.5rem' },
+  catChip:      { padding: '.375rem .875rem', borderRadius: 999, border: '1.5px solid #d4d1ca', background: 'none', fontSize: '.875rem', color: '#7a7974', cursor: 'pointer', fontWeight: 500 },
   catChipActive:{ background: '#01696f', borderColor: '#01696f', color: '#fff' },
-  error:       { fontSize: '.875rem', color: '#a12c7b', background: '#f9f2f6', padding: '.625rem .875rem', borderRadius: 8 },
-  submitBtn:   { height: 52, background: '#01696f', color: '#fff', fontSize: '1rem', fontWeight: 600, border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.5rem' },
+  error:        { fontSize: '.875rem', color: '#a12c7b', background: '#f9f2f6', padding: '.625rem .875rem', borderRadius: 8 },
+  submitBtn:    { height: 52, background: '#01696f', color: '#fff', fontSize: '1rem', fontWeight: 600, border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.5rem' },
 };
