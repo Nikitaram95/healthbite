@@ -306,18 +306,13 @@ export default function FeedScreen({ onOpenComments }: { onOpenComments?: (posti
 
   // ─── Навигация ──────────────────────────────────────────────────────────────
 
-  const handleNavigate = useCallback((postid: string) => {
-    router.push(`/post/${postid}`);
-  }, [router]);
+function handleNavigate(postid: string) {
+  router.push(`/post/${postid}`);
+}
 
-  const handleComments = useCallback((postid: string) => {
-    if (onOpenComments) {
-      onOpenComments(postid);
-    } else {
-      router.push(`/post/${postid}#comments`);
-    }
-  }, [onOpenComments, router]);
-
+function handleComments(postid: string) {
+  router.push(`/post/${postid}#comments`);
+}
   // ─── Фильтрация ─────────────────────────────────────────────────────────────
 
   const filteredPosts = searchQuery.trim()
