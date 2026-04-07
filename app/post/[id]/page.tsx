@@ -159,7 +159,7 @@ export default function PostPage() {
     setLoadingPost(true);
     try {
       const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
-      const res = await fetch(`${API_BASE}/posts/${id}${qs}`);
+      const res = await fetch(`${API_BASE}/post/${id}${qs}`);
       if (res.status === 404) { router.push('/feed'); return; }
       if (!res.ok) throw new Error('Ошибка загрузки');
       setPost(await res.json());
@@ -174,7 +174,7 @@ export default function PostPage() {
     if (!id) return;
     setLoadingComments(true);
     try {
-      const res  = await fetch(`${API_BASE}/posts/${id}/comments`);
+      const res  = await fetch(`${API_BASE}/post/${id}/comments`);
       const data = await res.json();
       setComments(Array.isArray(data) ? data : []);
     } catch (e) {
