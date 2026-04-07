@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
@@ -210,31 +209,43 @@ const loadComments = useCallback(async () => {
 
 const handleLike = useCallback(async () => {
   if (!post || !user?.phone || likePending) return;
-  
   const wasLiked = post.liked;
-  // Оптимистично обновляем UI
+
+  // Оптимистичное обновление
   setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
   setLikePending(true);
-  
+
   try {
-    const res = await fetch(`${API}/post/${post.postid}/like`, {
+    const res = await fetch(`${API}/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.phone }),  // ← Только userId нужен
+      body: JSON.stringify({
+        action: wasLiked ? 'unlikepost' : 'likepost',
+        postId: post.postid,
+        userId: user.phone,
+      }),
     });
-    
-    if (!res.ok) throw new Error(`Like error: ${res.status}`);
-    
-    const data = await res.json();
-    setPost((p) => p ? { ...p, likes: data.likes, liked: data.liked } : p);
+
+    const raw = await res.text();
+    console.log('like raw response:', raw); // ← ПОСМОТРИ ЧТО ПРИШЛО
+
+    const data = JSON.parse(raw);
+
+    // Защита: только обновляем если сервер вернул валидные числа
+    setPost((p) => p ? {
+      ...p,
+      likes: typeof data.likes === 'number' ? data.likes : p.likes,
+      liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
+    } : p);
+
   } catch (e) {
-    console.error('Like failed:', e);
-    // Откатываем UI
+    console.error('like error:', e);
+    // Откатываем
     setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
   } finally {
     setLikePending(false);
   }
-}, [post, user?.phone, likePending, id]);  // ← Добавь id в зависимости
+}, [post, user?.phone, likePending]);
 
 const handleComment = useCallback(async (e: React.FormEvent) => {
   e.preventDefault();
@@ -330,18 +341,14 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
   post.type === 'video'
     ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
     : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-        <Image 
-          src={post.mediaurl} 
-          alt={post.title} 
-          fill 
-          style={{ objectFit: 'cover' }}
-          crossOrigin="anonymous"  // ← ДОБАВЬ ЭТО
-          onError={() => setImgError(true)} 
-          sizes="(max-width:720px) 100vw,680px" 
-          priority 
-        />
-        <div style={s.mediaOverlay} />
-      </div>
+  <img
+    src={post.mediaurl}
+    alt={post.title}
+    onError={() => setImgError(true)}
+    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+  />
+  <div style={s.mediaOverlay} />
+</div>
 )}
 
           <div style={{ padding: '20px 16px 16px' }}>
