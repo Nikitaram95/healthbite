@@ -358,7 +358,7 @@ export default function PostPage() {
         </article>
 
         {/* Комментарии */}
-        <section style={{ ...s.card, padding: '20px 16px' }}>
+        <section id="comments" style={{ ...s.card, padding: '20px 16px' }}>
           <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '.9375rem', fontWeight: 700, color: '#dceaff', marginBottom: 18 }}>
             Комментарии
             {comments.length > 0 && (

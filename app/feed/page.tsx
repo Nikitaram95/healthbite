@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -134,11 +135,11 @@ function SkeletonCard() {
 // ─── Карточка поста ───────────────────────────────────────────────────────────
 
 interface PostCardProps {
-  post:           Post;
-  userId:         string;
-  onLike:         (postid: string, liked: boolean) => void;
-  onNavigate:     (postid: string) => void;
-  onComments:     (postid: string) => void;
+  post:       Post;
+  userId:     string;
+  onLike:     (postid: string, liked: boolean) => void;
+  onNavigate: (postid: string) => void;
+  onComments: (postid: string) => void;
 }
 
 function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProps) {
@@ -149,7 +150,6 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
   const cat      = getCatStyle(post.categoryid);
 
   function handleLike(e: React.MouseEvent) {
-    // останавливаем всплытие — иначе клик уйдёт на карточку
     e.stopPropagation();
     if (!userId) return;
     setPopping(true);
@@ -163,26 +163,20 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
   }
 
   return (
-    // Вся карточка кликабельна → редирект на пост
     <article
       style={{ ...s.card, cursor: 'pointer' }}
       onClick={() => onNavigate(post.postid)}
     >
-      {/* Медиа */}
       {post.mediaurl && !imgError && (
         <div style={s.mediaWrap}>
           {post.type === 'video' ? (
-            // Останавливаем клик на видео чтобы controls работали
             <video
               src={post.mediaurl}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              muted
-              playsInline
-              controls
+              muted playsInline controls
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            // Обычный <img> — next/image с fill ломает aspect-ratio без явной высоты
             <img
               src={post.mediaurl}
               alt={post.title}
@@ -195,7 +189,6 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
       )}
 
       <div style={s.cardBody}>
-        {/* Автор + дата */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <div style={s.authorAvatar}>
             {(post.author || '?').slice(0, 1).toUpperCase()}
@@ -216,13 +209,9 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
           </div>
         </div>
 
-        {/* Заголовок */}
         <p style={s.cardTitle}>{post.title}</p>
-
-        {/* Описание */}
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
-        {/* Футер */}
         <div style={s.cardFooter}>
           <button
             className={popping ? 'like-pop' : ''}
@@ -230,8 +219,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
             onClick={handleLike}
             aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
           >
-            <svg
-              width="14" height="14" viewBox="0 0 24 24"
+            <svg width="14" height="14" viewBox="0 0 24 24"
               fill={post.liked ? 'currentColor' : 'none'}
               stroke="currentColor" strokeWidth="2"
             >
@@ -258,13 +246,10 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
 
 // ─── Главный экран ────────────────────────────────────────────────────────────
 
-interface FeedScreenProps {
-  userId?:         string;
-  onOpenComments?: (postid: string) => void;
-}
-
-export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenProps) {
+export default function FeedScreen({ onOpenComments }: { onOpenComments?: (postid: string) => void }) {
   const router = useRouter();
+  const { user } = useAuth();                   // ← берём userId здесь
+  const userId = user?.phone ?? '';
 
   const [posts,          setPosts]          = useState<Post[]>([]);
   const [loading,        setLoading]        = useState(true);
@@ -273,7 +258,7 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
   const [searchQuery,    setSearchQuery]    = useState('');
   const [likePending,    setLikePending]    = useState<Set<string>>(new Set());
 
-  // ─── Загрузка ─────────────────────────────────────────────────────────────
+  // ─── Загрузка ───────────────────────────────────────────────────────────────
 
   const loadPosts = useCallback(async (category: string) => {
     setLoading(true);
@@ -291,12 +276,11 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
 
   useEffect(() => { loadPosts(activeCategory); }, [activeCategory, loadPosts]);
 
-  // ─── Лайк ─────────────────────────────────────────────────────────────────
+  // ─── Лайк ───────────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async (postid: string, currentLiked: boolean) => {
     if (!userId || likePending.has(postid)) return;
 
-    // Оптимистичное обновление
     setPosts(prev => prev.map(p =>
       p.postid === postid
         ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
@@ -306,12 +290,10 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
 
     try {
       const result = await toggleLike(postid, userId, currentLiked);
-      // Синхронизируем с сервером
       setPosts(prev => prev.map(p =>
         p.postid === postid ? { ...p, likes: result.likes, liked: result.liked } : p
       ));
     } catch {
-      // Откат при ошибке
       setPosts(prev => prev.map(p =>
         p.postid === postid
           ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
@@ -322,22 +304,21 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
     }
   }, [userId, likePending]);
 
-  // ─── Навигация ────────────────────────────────────────────────────────────
+  // ─── Навигация ──────────────────────────────────────────────────────────────
 
-  function handleNavigate(postid: string) {
+  const handleNavigate = useCallback((postid: string) => {
     router.push(`/post/${postid}`);
-  }
+  }, [router]);
 
-  function handleComments(postid: string) {
+  const handleComments = useCallback((postid: string) => {
     if (onOpenComments) {
       onOpenComments(postid);
     } else {
-      // скролл к комментариям на странице поста
       router.push(`/post/${postid}#comments`);
     }
-  }
+  }, [onOpenComments, router]);
 
-  // ─── Фильтрация ───────────────────────────────────────────────────────────
+  // ─── Фильтрация ─────────────────────────────────────────────────────────────
 
   const filteredPosts = searchQuery.trim()
     ? posts.filter(p =>
@@ -347,16 +328,14 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
       )
     : posts;
 
-  // ─── Рендер ───────────────────────────────────────────────────────────────
+  // ─── Рендер ─────────────────────────────────────────────────────────────────
 
   return (
     <>
       <style>{globalStyles}</style>
-
       <div style={s.page}>
         <div style={s.gridBg} />
 
-        {/* Шапка */}
         <header style={s.header}>
           <div style={s.headerInner}>
             <div style={s.searchWrap}>
@@ -380,7 +359,6 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
             </div>
           </div>
 
-          {/* Категории */}
           <div style={s.catsWrap}>
             <div style={s.catsInner}>
               {CATEGORIES.map(({ key, label }) => {
@@ -401,7 +379,6 @@ export default function FeedScreen({ userId = '', onOpenComments }: FeedScreenPr
           </div>
         </header>
 
-        {/* Контент */}
         <main style={s.main}>
           {loading && (
             <div style={s.grid}>
@@ -558,10 +535,8 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'border-color .18s ease, box-shadow .18s ease',
   },
   mediaWrap: {
-    position: 'relative',
-    aspectRatio: '16/9',
-    overflow: 'hidden',
-    background: 'rgba(0,0,0,.3)',
+    position: 'relative', aspectRatio: '16/9',
+    overflow: 'hidden', background: 'rgba(0,0,0,.3)',
   },
   mediaOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 48,
@@ -592,18 +567,15 @@ const s: Record<string, React.CSSProperties> = {
   },
   cardTitle: {
     fontFamily: 'Orbitron, sans-serif',
-    fontSize: '.9375rem', fontWeight: 700,
-    color: '#dceaff',
-    lineHeight: 1.35, marginBottom: 8,
-    overflow: 'hidden',
+    fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
+    lineHeight: 1.35, marginBottom: 8, overflow: 'hidden',
     display: '-webkit-box' as unknown as React.CSSProperties['display'],
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical' as const,
   },
   cardDesc: {
     fontSize: '.8125rem', color: '#8aa3bf',
-    lineHeight: 1.6, marginBottom: 12,
-    overflow: 'hidden',
+    lineHeight: 1.6, marginBottom: 12, overflow: 'hidden',
     display: '-webkit-box' as unknown as React.CSSProperties['display'],
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical' as const,
