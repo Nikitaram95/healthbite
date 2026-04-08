@@ -209,10 +209,12 @@ const loadComments = useCallback(async () => {
 
 const handleLike = useCallback(async () => {
   if (!post || !user?.phone || likePending) return;
+
   const wasLiked = post.liked;
 
-  // Оптимистичное обновление
-  setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
+  setPost((p) =>
+    p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p
+  );
   setLikePending(true);
 
   try {
@@ -226,22 +228,27 @@ const handleLike = useCallback(async () => {
       }),
     });
 
-    const raw = await res.text();
-    console.log('like raw response:', raw); // ← ПОСМОТРИ ЧТО ПРИШЛО
+    if (!res.ok) {
+      const raw = await res.text();
+      throw new Error(`like ${res.status}: ${raw}`);
+    }
 
-    const data = JSON.parse(raw);
+    const data = await res.json();
 
-    // Защита: только обновляем если сервер вернул валидные числа
-    setPost((p) => p ? {
-      ...p,
-      likes: typeof data.likes === 'number' ? data.likes : p.likes,
-      liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
-    } : p);
-
+    setPost((p) =>
+      p
+        ? {
+            ...p,
+            likes: typeof data.likes === 'number' ? data.likes : p.likes,
+            liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
+          }
+        : p
+    );
   } catch (e) {
     console.error('like error:', e);
-    // Откатываем
-    setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
+    setPost((p) =>
+      p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p
+    );
   } finally {
     setLikePending(false);
   }
