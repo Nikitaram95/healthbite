@@ -28,7 +28,9 @@ interface Comment {
   createdat: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
+const API =
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
 
 const CATEGORIES: Record<string, string> = {
   food:      'Питание',
@@ -37,7 +39,6 @@ const CATEGORIES: Record<string, string> = {
   health:    'Здоровье',
   lifestyle: 'Образ жизни',
 };
-
 const CAT_COLORS: Record<string, string> = {
   food:      'rgba(255,179,71,.18)',
   mental:    'rgba(239,68,68,.18)',
@@ -53,25 +54,59 @@ const CAT_TEXT: Record<string, string> = {
   lifestyle: '#c79df5',
 };
 
-function getCategoryLabel(key: string) { return CATEGORIES[key] ?? key; }
+function getCategoryLabel(key: string) {
+  return CATEGORIES[key] ?? key;
+}
 
-function getRelativeTime(createdat: string): string {
-  if (!createdat) return '';
-  const ms = Number(createdat);
-  if (!ms || isNaN(ms)) return '';
-  const diff = Date.now() - ms;
+/**
+ * Универсальный парсер: принимает
+ *  - Unix ms (число или строка)          "1712345678901"
+ *  - Unix seconds (число или строка)     "1712345678"
+ *  - ISO 8601                            "2024-04-05T12:00:00Z"
+ *  - любой формат, понятный Date()
+ * Возвращает миллисекунды или 0, если разобрать не удалось.
+ */
+function parseTimestamp(raw: string | number | null | undefined): number {
+  if (raw === null || raw === undefined || raw === '') return 0;
+
+  const str = String(raw).trim();
+
+  // Чисто цифровая строка — Unix timestamp
+  if (/^\d+$/.test(str)) {
+    const n = Number(str);
+    // Если меньше 1e12 — скорее всего секунды, переводим в мс
+    return n < 1_000_000_000_000 ? n * 1000 : n;
+  }
+
+  // ISO / RFC — пусть Date разберёт
+  const ms = Date.parse(str);
+  return isNaN(ms) ? 0 : ms;
+}
+
+function getRelativeTime(raw: string | number | null | undefined): string {
+  const ms = parseTimestamp(raw);
+  if (!ms) return '';
+
+  const diff    = Date.now() - ms;
+  if (diff < 0) return 'только что';           // сервер чуть опережает клиента
+
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1)  return 'только что';
   if (minutes < 60) return `${minutes} мин назад`;
+
   const hours = Math.floor(minutes / 60);
   if (hours < 24)   return `${hours} ч назад`;
+
   const days = Math.floor(hours / 24);
   if (days === 1)   return '1 д назад';
   if (days < 7)     return `${days} д назад`;
+
   const weeks = Math.floor(days / 7);
   if (weeks < 5)    return `${weeks} нед назад`;
+
   const months = Math.floor(days / 30);
   if (months < 12)  return `${months} мес назад`;
+
   return `${Math.floor(months / 12)} г назад`;
 }
 
@@ -80,13 +115,16 @@ function getRelativeTime(createdat: string): string {
 function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
   const letter = (name || '?').slice(0, 1).toUpperCase();
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: 'rgba(0,162,255,.15)',
-      border: '1px solid rgba(0,162,255,.25)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
-    }} aria-label={name}>
+    <div
+      style={{
+        width: size, height: size, borderRadius: '50%',
+        background: 'rgba(0,162,255,.15)',
+        border: '1px solid rgba(0,162,255,.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
+      }}
+      aria-label={name}
+    >
       {letter}
     </div>
   );
@@ -139,9 +177,9 @@ function SkeletonComments() {
 // ─── Основной компонент ───────────────────────────────────────────────────────
 
 export default function PostPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { user } = useAuth();
+  const { id }    = useParams<{ id: string }>();
+  const router    = useRouter();
+  const { user }  = useAuth();
 
   const [post,            setPost]            = useState<Post | null>(null);
   const [loadingPost,     setLoadingPost]     = useState(true);
@@ -153,16 +191,17 @@ export default function PostPage() {
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
 
+  // ─── Загрузка поста ──────────────────────────────────────────────────────
+
   const loadPost = useCallback(async () => {
     if (!id) return;
     setLoadingPost(true);
     try {
-      const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
+      const qs  = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
       const res = await fetch(`${API}/post/${id}${qs}`);
       if (res.status === 404) { router.push('/feed'); return; }
-      if (!res.ok) { const text = await res.text(); throw new Error(`loadPost ${res.status}: ${text}`); }
-      const data = await res.json();
-      setPost(data);
+      if (!res.ok) throw new Error(`loadPost ${res.status}: ${await res.text()}`);
+      setPost(await res.json());
     } catch (e) {
       console.error('loadPost:', e);
     } finally {
@@ -170,14 +209,17 @@ export default function PostPage() {
     }
   }, [id, user?.phone, router]);
 
+  // ─── Загрузка комментариев ───────────────────────────────────────────────
+
   const loadComments = useCallback(async () => {
     if (!id) return;
     setLoadingComments(true);
     try {
-      const res = await fetch(`${API}/post/${id}/comments`);
-      if (!res.ok) { const text = await res.text(); throw new Error(`loadComments ${res.status}: ${text}`); }
+      const res  = await fetch(`${API}/post/${id}/comments`);
+      if (!res.ok) throw new Error(`loadComments ${res.status}: ${await res.text()}`);
       const data = await res.json();
-      setComments(Array.isArray(data) ? data : []);
+      // Поддерживаем как массив напрямую, так и { comments: [...] }
+      setComments(Array.isArray(data) ? data : Array.isArray(data?.comments) ? data.comments : []);
     } catch (e) {
       console.error('loadComments:', e);
       setComments([]);
@@ -188,6 +230,8 @@ export default function PostPage() {
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
+  // ─── Лайк ────────────────────────────────────────────────────────────────
+
   const handleLike = useCallback(async () => {
     if (!post || !user?.phone || likePending) return;
     const wasLiked = post.liked;
@@ -195,7 +239,7 @@ export default function PostPage() {
     setLikePending(true);
     try {
       const res = await fetch(`${API}/upload`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: wasLiked ? 'unlikepost' : 'likepost',
@@ -203,7 +247,7 @@ export default function PostPage() {
           userId: user.phone,
         }),
       });
-      if (!res.ok) { const raw = await res.text(); throw new Error(`like ${res.status}: ${raw}`); }
+      if (!res.ok) throw new Error(`like ${res.status}: ${await res.text()}`);
       const data = await res.json();
       setPost((p) => p ? {
         ...p,
@@ -218,6 +262,8 @@ export default function PostPage() {
     }
   }, [post, user?.phone, likePending]);
 
+  // ─── Отправка комментария ────────────────────────────────────────────────
+
   const handleComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !id) return;
@@ -225,11 +271,11 @@ export default function PostPage() {
     setCommentError('');
     try {
       const res = await fetch(`${API}/post/${id}/comments`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: commentText.trim() }),
       });
-      if (!res.ok) { const raw = await res.text(); throw new Error(`sendComment ${res.status}: ${raw}`); }
+      if (!res.ok) throw new Error(`sendComment ${res.status}: ${await res.text()}`);
       await res.json();
       setCommentText('');
       await loadComments();
@@ -240,7 +286,7 @@ export default function PostPage() {
     }
   }, [commentText, id, loadComments]);
 
-  // ─── Загрузка ──────────────────────────────────────────────────────────────
+  // ─── Скелетон загрузки ───────────────────────────────────────────────────
 
   if (loadingPost) {
     return (
@@ -249,7 +295,9 @@ export default function PostPage() {
         <div style={s.gridBg} />
         <header style={s.header}>
           <div style={s.headerInner}>
-            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад"><ArrowIcon /></button>
+            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
+              <ArrowIcon />
+            </button>
             <Link href="/feed" style={s.logo}>HealthBite</Link>
             <div style={{ width: 34 }} />
           </div>
@@ -276,14 +324,13 @@ export default function PostPage() {
   const catBg    = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
   const catTxt   = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
 
-  // ─── Рендер ────────────────────────────────────────────────────────────────
+  // ─── Рендер ──────────────────────────────────────────────────────────────
 
   return (
     <div style={s.page}>
       <style>{globalStyles}</style>
       <div style={s.gridBg} />
 
-      {/* Шапка — без трёх точек */}
       <header style={s.header}>
         <div style={s.headerInner}>
           <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
@@ -300,8 +347,14 @@ export default function PostPage() {
         <article style={{ ...s.card, marginBottom: 16 }}>
           {post.mediaurl && !imgError && (
             post.type === 'video'
-              ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
-              : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+              ? (
+                <video
+                  src={post.mediaurl}
+                  controls playsInline
+                  style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }}
+                />
+              ) : (
+                <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
                   <img
                     src={post.mediaurl}
                     alt={post.title}
@@ -310,6 +363,7 @@ export default function PostPage() {
                   />
                   <div style={s.mediaOverlay} />
                 </div>
+              )
           )}
 
           <div style={{ padding: '20px 16px 16px' }}>
@@ -317,10 +371,14 @@ export default function PostPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <AuthorAvatar name={post.author} size={40} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '.9rem', fontWeight: 700, color: '#dceaff', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{
+                  fontSize: '.9rem', fontWeight: 700, color: '#dceaff',
+                  marginBottom: 4, overflow: 'hidden',
+                  textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   @{post.author}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ ...s.catBadge, background: catBg, color: catTxt }}>{catLabel}</span>
                   {relTime && (
                     <>
@@ -332,17 +390,25 @@ export default function PostPage() {
               </div>
             </div>
 
-            <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.1rem, 3vw, 1.375rem)', fontWeight: 800, color: '#dceaff', lineHeight: 1.3, marginBottom: 12 }}>
+            <h1 style={{
+              fontFamily: 'Orbitron, sans-serif',
+              fontSize: 'clamp(1.1rem, 3vw, 1.375rem)',
+              fontWeight: 800, color: '#dceaff',
+              lineHeight: 1.3, marginBottom: 12,
+            }}>
               {post.title}
             </h1>
 
             {post.description && (
-              <p style={{ fontSize: '.9rem', color: '#8aa3bf', lineHeight: 1.75, marginBottom: 16, whiteSpace: 'pre-wrap', maxWidth: 'none' }}>
+              <p style={{
+                fontSize: '.9rem', color: '#8aa3bf', lineHeight: 1.75,
+                marginBottom: 16, whiteSpace: 'pre-wrap', maxWidth: 'none',
+              }}>
                 {post.description}
               </p>
             )}
 
-            {/* Только лайк */}
+            {/* Лайк */}
             <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
               <button
                 onClick={handleLike}
@@ -364,10 +430,22 @@ export default function PostPage() {
 
         {/* Комментарии */}
         <section id="comments" style={{ ...s.card, padding: '20px 16px' }}>
-          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '.9375rem', fontWeight: 700, color: '#dceaff', marginBottom: 18 }}>
+
+          {/* Заголовок со счётчиком */}
+          <h2 style={{
+            fontFamily: 'Orbitron, sans-serif',
+            fontSize: '.9375rem', fontWeight: 700,
+            color: '#dceaff', marginBottom: 18,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
             Комментарии
-            {comments.length > 0 && (
-              <span style={{ fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf', marginLeft: 8 }}>
+            {!loadingComments && comments.length > 0 && (
+              <span style={{
+                fontSize: '.8125rem', fontWeight: 400,
+                color: '#8aa3bf',
+                background: 'rgba(255,255,255,.06)',
+                padding: '1px 8px', borderRadius: 999,
+              }}>
                 {comments.length}
               </span>
             )}
@@ -384,7 +462,10 @@ export default function PostPage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleComment(e as unknown as React.FormEvent); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
+                      handleComment(e as unknown as React.FormEvent);
+                  }}
                   style={{
                     flex: 1, padding: '10px 14px',
                     borderRadius: 12,
@@ -401,14 +482,20 @@ export default function PostPage() {
                 />
               </div>
               {commentError && (
-                <p style={{ fontSize: '.8125rem', color: '#ff8e8e', marginBottom: 6, paddingLeft: 42 }}>{commentError}</p>
+                <p style={{ fontSize: '.8125rem', color: '#ff8e8e', marginBottom: 6, paddingLeft: 42 }}>
+                  {commentError}
+                </p>
               )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 42 }}>
                 <span style={{ fontSize: '.75rem', color: '#3a4f6a' }}>Ctrl+Enter</span>
                 <button
                   type="submit"
                   disabled={sendingComment || !commentText.trim()}
-                  style={{ ...s.btnPrimary, opacity: sendingComment || !commentText.trim() ? 0.45 : 1, cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer' }}
+                  style={{
+                    ...s.btnPrimary,
+                    opacity: sendingComment || !commentText.trim() ? 0.45 : 1,
+                    cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer',
+                  }}
                 >
                   {sendingComment ? '...' : 'Отправить'}
                 </button>
@@ -422,8 +509,10 @@ export default function PostPage() {
             </div>
           )}
 
-          {/* Список */}
-          {loadingComments ? <SkeletonComments /> : comments.length === 0 ? (
+          {/* Список комментариев */}
+          {loadingComments ? (
+            <SkeletonComments />
+          ) : comments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: '#8aa3bf' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
               <p style={{ fontWeight: 600, color: '#dceaff', marginBottom: 4 }}>Пока нет комментариев</p>
@@ -431,20 +520,32 @@ export default function PostPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {comments.map((c) => (
-                <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
-                  <AuthorAvatar name={c.author} size={32} />
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,.04)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,.06)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>{c.author}</span>
-                      {getRelativeTime(c.createdat) && (
-                        <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>{getRelativeTime(c.createdat)}</span>
-                      )}
+              {comments.map((c) => {
+                const timeStr = getRelativeTime(c.createdat);
+                return (
+                  <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
+                    <AuthorAvatar name={c.author} size={32} />
+                    <div style={{
+                      flex: 1,
+                      background: 'rgba(255,255,255,.04)',
+                      borderRadius: 12, padding: '10px 14px',
+                      border: '1px solid rgba(255,255,255,.06)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>
+                          {c.author}
+                        </span>
+                        {timeStr && (
+                          <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>{timeStr}</span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6 }}>
+                        {c.text}
+                      </p>
                     </div>
-                    <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6, maxWidth: 'none' }}>{c.text}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -459,14 +560,19 @@ export const dynamic = 'force-dynamic';
 
 function ArrowIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"/>
+      <polyline points="12 19 5 12 12 5"/>
     </svg>
   );
 }
+
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor" strokeWidth="2">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
   );
@@ -543,7 +649,7 @@ const s: Record<string, React.CSSProperties> = {
   catBadge: {
     display: 'inline-block', padding: '.15rem .625rem',
     borderRadius: 999, fontSize: '.6875rem', fontWeight: 700,
-    letterSpacing: '.04em', textTransform: 'uppercase',
+    letterSpacing: '.04em', textTransform: 'uppercase' as const,
   },
   actionBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
