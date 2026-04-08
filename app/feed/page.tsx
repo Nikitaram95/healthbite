@@ -2,21 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
 interface Post {
-  postid:        string;
-  author:        string;
-  categoryid:    string;
-  description:   string;
-  mediaurl:      string;
-  title:         string;
-  type:          string;
-  createdat:     string;
-  likes:         number;
-  liked:         boolean;
+  postid:       string;
+  author:       string;
+  categoryid:   string;
+  description:  string;
+  mediaurl:     string;
+  title:        string;
+  type:         string;
+  createdat:    string;
+  likes:        number;
+  liked:        boolean;
   commentsCount: number;
 }
 
@@ -111,6 +112,60 @@ async function toggleLike(
   return res.json();
 }
 
+// ─── Аватар пользователя ─────────────────────────────────────────────────────
+
+function UserAvatar({ user, size = 36 }: { user: any; size?: number }) {
+  const letter = (user.name || user.phone || '?').slice(0, 1).toUpperCase();
+  const hasAvatar = user.avatar_url && user.avatar_url !== '';
+  
+  return (
+    <div 
+      style={{
+        position: 'relative', 
+        width: size, 
+        height: size, 
+        borderRadius: '50%',
+        overflow: 'hidden',
+        flexShrink: 0,
+        cursor: 'pointer'
+      }}
+    >
+      {hasAvatar ? (
+        <img
+          src={user.avatar_url}
+          alt={user.name || user.phone}
+          style={{
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            display: 'block'
+          }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display', 'flex');
+          }}
+        />
+      ) : null}
+      <div 
+        style={{
+          width: '100%', 
+          height: '100%',
+          background: 'rgba(0,162,255,.15)',
+          border: '1px solid rgba(0,162,255,.25)',
+          display: hasAvatar ? 'none' : 'flex',
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: '#7ecfff', 
+          fontSize: size * 0.4, 
+          fontWeight: 700
+        }}
+      >
+        {letter}
+      </div>
+    </div>
+  );
+}
+
 // ─── Скелетон ─────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -164,10 +219,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
   }
 
   return (
-    <article
-      style={{ ...s.card, cursor: 'pointer' }}
-      onClick={() => onNavigate(post.postid)}
-    >
+    <article style={{ ...s.card, cursor: 'pointer' }} onClick={() => onNavigate(post.postid)}>
       {post.mediaurl && !imgError && (
         <div style={s.mediaWrap}>
           {post.type === 'video' ? (
@@ -197,9 +249,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={s.authorName}>@{post.author}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span style={{ ...s.catBadge, background: cat.bg, color: cat.text }}>
-                {catLabel}
-              </span>
+              <span style={{ ...s.catBadge, background: cat.bg, color: cat.text }}>{catLabel}</span>
               {relTime && (
                 <>
                   <span style={{ color: '#3a4f6a', fontSize: 12 }}>·</span>
@@ -214,33 +264,24 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
         <div style={s.cardFooter}>
-          {/* Лайк */}
           <button
             className={popping ? 'like-pop' : ''}
             style={{ ...s.likeBtn, ...(post.liked ? s.likeBtnActive : {}) }}
             onClick={handleLike}
             aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24"
-              fill={post.liked ? 'currentColor' : 'none'}
-              stroke="currentColor" strokeWidth="2"
-            >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={post.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
             <span>{post.likes}</span>
           </button>
 
-          {/* Комментарии */}
-          <button
-            onClick={handleComments}
-            aria-label="Комментарии"
-            style={s.commentBtn}
-          >
+          <button onClick={handleComments} aria-label="Комментарии" style={s.commentBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {post.commentsCount > 0 ? post.commentsCount : 'Комментарии'}
+              {post.commentsCount > 0 ? post.commentsCount : ''}
             </span>
           </button>
         </div>
@@ -251,17 +292,17 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
 
 // ─── Главный экран ────────────────────────────────────────────────────────────
 
-export default function FeedScreen({ onOpenComments }: { onOpenComments?: (postid: string) => void }) {
+export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.phone ?? '';
 
-  const [posts,          setPosts]          = useState<Post[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery,    setSearchQuery]    = useState('');
-  const [likePending,    setLikePending]    = useState<Set<string>>(new Set());
+  const [posts,           setPosts]           = useState<Post[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState<string | null>(null);
+  const [activeCategory,  setActiveCategory]  = useState('all');
+  const [searchQuery,     setSearchQuery]     = useState('');
+  const [likePending,     setLikePending]     = useState<Set<string>>(new Set());
 
   // ─── Загрузка ───────────────────────────────────────────────────────────────
 
@@ -344,6 +385,10 @@ export default function FeedScreen({ onOpenComments }: { onOpenComments?: (posti
     router.push(`/post/${postid}#comments`);
   }
 
+  function handleProfile() {
+    if (user) router.push('/profile');
+  }
+
   // ─── Фильтрация ─────────────────────────────────────────────────────────────
 
   const q = searchQuery.toLowerCase();
@@ -363,8 +408,27 @@ export default function FeedScreen({ onOpenComments }: { onOpenComments?: (posti
       <div style={s.page}>
         <div style={s.gridBg} />
 
+        {/* 🔥 ПРОФИЛЬ В ШАПКЕ */}
         <header style={s.header}>
           <div style={s.headerInner}>
+            {/* Аватар + Имя */}
+            {user ? (
+              <button onClick={handleProfile} style={s.profileBtn} aria-label="Профиль">
+                <UserAvatar user={user} size={40} />
+                <div style={s.profileInfo}>
+                  <div style={s.profileName}>
+                    {user.name || user.phone?.slice(-5) || 'Пользователь'}
+                  </div>
+                  <div style={s.profileStatus}>Мои посты</div>
+                </div>
+              </button>
+            ) : (
+              <Link href="/login" style={s.loginLink}>
+                Войти
+              </Link>
+            )}
+
+            {/* Поиск */}
             <div style={s.searchWrap}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8aa3bf" strokeWidth="2" style={{ flexShrink: 0 }}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -495,13 +559,37 @@ const s: Record<string, React.CSSProperties> = {
   },
   headerInner: {
     maxWidth: 700, margin: '0 auto', padding: '12px 16px 0',
+    display: 'flex', flexDirection: 'column', gap: 12,
+  },
+  // 🔥 ПРОФИЛЬНЫЕ СТИЛИ
+  profileBtn: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: '8px 0', width: '100%',
+  },
+  profileInfo: {
+    flex: 1, minWidth: 0,
+  },
+  profileName: {
+    fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  profileStatus: {
+    fontSize: '.75rem', color: '#8aa3bf', marginTop: 2,
+  },
+  loginLink: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '12px 16px', background: 'rgba(0,162,255,.1)',
+    border: '1px solid rgba(0,162,255,.25)', 
+    borderRadius: 12, color: '#7ecfff',
+    textDecoration: 'none', fontWeight: 600, fontSize: '.875rem',
+    cursor: 'pointer', transition: 'all .18s ease',
   },
   searchWrap: {
     display: 'flex', alignItems: 'center', gap: 8,
     background: 'rgba(255,255,255,.05)',
     border: '1px solid rgba(0,162,255,.12)',
     borderRadius: 999, padding: '8px 14px',
-    marginBottom: 12,
   },
   searchInput: {
     flex: 1, background: 'none', border: 'none', outline: 'none',
