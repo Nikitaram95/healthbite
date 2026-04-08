@@ -419,7 +419,7 @@ export default function FeedScreen() {
                   <div style={s.profileName}>
                     {user.name || user.phone?.slice(-5) || 'Пользователь'}
                   </div>
-                  <div style={s.profileStatus}>Мои посты</div>
+                  <div style={s.profileStatus}>Мой профиль</div>
                 </div>
               </button>
             ) : (
