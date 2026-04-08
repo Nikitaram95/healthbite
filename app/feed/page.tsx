@@ -7,16 +7,17 @@ import { useAuth } from '@/hooks/useAuth';
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
 interface Post {
-  postid:      string;
-  author:      string;
-  categoryid:  string;
-  description: string;
-  mediaurl:    string;
-  title:       string;
-  type:        string;
-  createdat:   string;
-  likes:       number;
-  liked:       boolean;
+  postid:        string;
+  author:        string;
+  categoryid:    string;
+  description:   string;
+  mediaurl:      string;
+  title:         string;
+  type:          string;
+  createdat:     string;
+  likes:         number;
+  liked:         boolean;
+  commentsCount: number;
 }
 
 // ─── Категории ────────────────────────────────────────────────────────────────
@@ -86,14 +87,9 @@ async function fetchPosts(category: string, userId: string): Promise<Post[]> {
   const params = new URLSearchParams();
   if (category && category !== 'all') params.set('category', category);
   if (userId) params.set('userId', userId);
-
   const url = `${API}/posts${params.toString() ? `?${params.toString()}` : ''}`;
   const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`Ошибка загрузки: ${res.status}`);
-  }
-
+  if (!res.ok) throw new Error(`Ошибка загрузки: ${res.status}`);
   return res.json();
 }
 
@@ -218,6 +214,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
         <div style={s.cardFooter}>
+          {/* Лайк */}
           <button
             className={popping ? 'like-pop' : ''}
             style={{ ...s.likeBtn, ...(post.liked ? s.likeBtnActive : {}) }}
@@ -233,6 +230,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
             <span>{post.likes}</span>
           </button>
 
+          {/* Комментарии */}
           <button
             onClick={handleComments}
             aria-label="Комментарии"
@@ -241,7 +239,9 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <span>Комментарии</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {post.commentsCount > 0 ? post.commentsCount : 'Комментарии'}
+            </span>
           </button>
         </div>
       </div>
@@ -253,7 +253,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
 
 export default function FeedScreen({ onOpenComments }: { onOpenComments?: (postid: string) => void }) {
   const router = useRouter();
-  const { user } = useAuth();                   // ← берём userId здесь
+  const { user } = useAuth();
   const userId = user?.phone ?? '';
 
   const [posts,          setPosts]          = useState<Post[]>([]);
@@ -284,47 +284,74 @@ export default function FeedScreen({ onOpenComments }: { onOpenComments?: (posti
   // ─── Лайк ───────────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async (postid: string, currentLiked: boolean) => {
-    if (!userId || likePending.has(postid)) return;
+    if (!userId) return;
 
-    setPosts(prev => prev.map(p =>
-      p.postid === postid
-        ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
-        : p
-    ));
-    setLikePending(s => new Set(s).add(postid));
+    let locked = false;
+    setLikePending((prev) => {
+      if (prev.has(postid)) return prev;
+      locked = true;
+      const next = new Set(prev);
+      next.add(postid);
+      return next;
+    });
+    if (!locked) return;
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.postid === postid
+          ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
+          : p
+      )
+    );
 
     try {
       const result = await toggleLike(postid, userId, currentLiked);
-      setPosts(prev => prev.map(p =>
-        p.postid === postid ? { ...p, likes: result.likes, liked: result.liked } : p
-      ));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.postid === postid
+            ? {
+                ...p,
+                likes: typeof result.likes === 'number' ? result.likes : p.likes,
+                liked: typeof result.liked === 'boolean' ? result.liked : p.liked,
+              }
+            : p
+        )
+      );
     } catch {
-      setPosts(prev => prev.map(p =>
-        p.postid === postid
-          ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
-          : p
-      ));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.postid === postid
+            ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
+            : p
+        )
+      );
     } finally {
-      setLikePending(s => { const n = new Set(s); n.delete(postid); return n; });
+      setLikePending((prev) => {
+        const next = new Set(prev);
+        next.delete(postid);
+        return next;
+      });
     }
-  }, [userId, likePending]);
+  }, [userId]);
 
   // ─── Навигация ──────────────────────────────────────────────────────────────
 
-function handleNavigate(postid: string) {
-  router.push(`/post/${postid}`);
-}
+  function handleNavigate(postid: string) {
+    router.push(`/post/${postid}`);
+  }
 
-function handleComments(postid: string) {
-  router.push(`/post/${postid}#comments`);
-}
+  function handleComments(postid: string) {
+    router.push(`/post/${postid}#comments`);
+  }
+
   // ─── Фильтрация ─────────────────────────────────────────────────────────────
 
+  const q = searchQuery.toLowerCase();
   const filteredPosts = searchQuery.trim()
     ? posts.filter(p =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.author.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.title       || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.author      || '').toLowerCase().includes(q)
       )
     : posts;
 
@@ -604,5 +631,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '.8125rem', color: '#8aa3bf',
     fontFamily: '"Exo 2", sans-serif',
     padding: '.3rem .5rem',
+    transition: 'color .18s ease',
   },
 };

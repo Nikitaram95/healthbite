@@ -153,136 +153,92 @@ export default function PostPage() {
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
 
-const loadPost = useCallback(async () => {
-  if (!id) return;
-
-  setLoadingPost(true);
-
-  try {
-    const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
-    const res = await fetch(`${API}/post/${id}${qs}`);
-
-    if (res.status === 404) {
-      router.push('/feed');
-      return;
+  const loadPost = useCallback(async () => {
+    if (!id) return;
+    setLoadingPost(true);
+    try {
+      const qs = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
+      const res = await fetch(`${API}/post/${id}${qs}`);
+      if (res.status === 404) { router.push('/feed'); return; }
+      if (!res.ok) { const text = await res.text(); throw new Error(`loadPost ${res.status}: ${text}`); }
+      const data = await res.json();
+      setPost(data);
+    } catch (e) {
+      console.error('loadPost:', e);
+    } finally {
+      setLoadingPost(false);
     }
+  }, [id, user?.phone, router]);
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`loadPost ${res.status}: ${text}`);
+  const loadComments = useCallback(async () => {
+    if (!id) return;
+    setLoadingComments(true);
+    try {
+      const res = await fetch(`${API}/post/${id}/comments`);
+      if (!res.ok) { const text = await res.text(); throw new Error(`loadComments ${res.status}: ${text}`); }
+      const data = await res.json();
+      setComments(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('loadComments:', e);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
     }
-
-    const data = await res.json();
-    setPost(data);
-  } catch (e) {
-    console.error('loadPost:', e);
-  } finally {
-    setLoadingPost(false);
-  }
-}, [id, user?.phone, router]);
-
- 
-const loadComments = useCallback(async () => {
-  if (!id) return;
-
-  setLoadingComments(true);
-
-  try {
-    const res = await fetch(`${API}/post/${id}/comments`);
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`loadComments ${res.status}: ${text}`);
-    }
-
-    const data = await res.json();
-    setComments(Array.isArray(data) ? data : []);
-  } catch (e) {
-    console.error('loadComments:', e);
-    setComments([]);
-  } finally {
-    setLoadingComments(false);
-  }
-}, [id]);
+  }, [id]);
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
-const handleLike = useCallback(async () => {
-  if (!post || !user?.phone || likePending) return;
-
-  const wasLiked = post.liked;
-
-  setPost((p) =>
-    p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p
-  );
-  setLikePending(true);
-
-  try {
-    const res = await fetch(`${API}/upload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: wasLiked ? 'unlikepost' : 'likepost',
-        postId: post.postid,
-        userId: user.phone,
-      }),
-    });
-
-    if (!res.ok) {
-      const raw = await res.text();
-      throw new Error(`like ${res.status}: ${raw}`);
+  const handleLike = useCallback(async () => {
+    if (!post || !user?.phone || likePending) return;
+    const wasLiked = post.liked;
+    setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
+    setLikePending(true);
+    try {
+      const res = await fetch(`${API}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: wasLiked ? 'unlikepost' : 'likepost',
+          postId: post.postid,
+          userId: user.phone,
+        }),
+      });
+      if (!res.ok) { const raw = await res.text(); throw new Error(`like ${res.status}: ${raw}`); }
+      const data = await res.json();
+      setPost((p) => p ? {
+        ...p,
+        likes: typeof data.likes === 'number' ? data.likes : p.likes,
+        liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
+      } : p);
+    } catch (e) {
+      console.error('like error:', e);
+      setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
+    } finally {
+      setLikePending(false);
     }
+  }, [post, user?.phone, likePending]);
 
-    const data = await res.json();
-
-    setPost((p) =>
-      p
-        ? {
-            ...p,
-            likes: typeof data.likes === 'number' ? data.likes : p.likes,
-            liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
-          }
-        : p
-    );
-  } catch (e) {
-    console.error('like error:', e);
-    setPost((p) =>
-      p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p
-    );
-  } finally {
-    setLikePending(false);
-  }
-}, [post, user?.phone, likePending]);
-
-const handleComment = useCallback(async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!commentText.trim() || !id) return;
-
-  setSendingComment(true);
-  setCommentError('');
-
-  try {
-    const res = await fetch(`${API}/post/${id}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: commentText.trim() }),
-    });
-
-    if (!res.ok) {
-      const raw = await res.text();
-      throw new Error(`sendComment ${res.status}: ${raw}`);
+  const handleComment = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !id) return;
+    setSendingComment(true);
+    setCommentError('');
+    try {
+      const res = await fetch(`${API}/post/${id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: commentText.trim() }),
+      });
+      if (!res.ok) { const raw = await res.text(); throw new Error(`sendComment ${res.status}: ${raw}`); }
+      await res.json();
+      setCommentText('');
+      await loadComments();
+    } catch (e: unknown) {
+      setCommentError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setSendingComment(false);
     }
-
-    await res.json();
-    setCommentText('');
-    await loadComments();
-  } catch (e: unknown) {
-    setCommentError(e instanceof Error ? e.message : 'Ошибка');
-  } finally {
-    setSendingComment(false);
-  }
-}, [commentText, id, loadComments]);
+  }, [commentText, id, loadComments]);
 
   // ─── Загрузка ──────────────────────────────────────────────────────────────
 
@@ -293,9 +249,7 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
         <div style={s.gridBg} />
         <header style={s.header}>
           <div style={s.headerInner}>
-            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
-              <ArrowIcon />
-            </button>
+            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад"><ArrowIcon /></button>
             <Link href="/feed" style={s.logo}>HealthBite</Link>
             <div style={{ width: 34 }} />
           </div>
@@ -329,14 +283,14 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
       <style>{globalStyles}</style>
       <div style={s.gridBg} />
 
-      {/* Шапка */}
+      {/* Шапка — без трёх точек */}
       <header style={s.header}>
         <div style={s.headerInner}>
           <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
             <ArrowIcon />
           </button>
           <Link href="/feed" style={s.logo}>HealthBite</Link>
-          <button style={s.iconBtn} aria-label="Опции"><DotsIcon /></button>
+          <div style={{ width: 34 }} />
         </div>
       </header>
 
@@ -344,19 +298,19 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
 
         {/* Пост */}
         <article style={{ ...s.card, marginBottom: 16 }}>
-{post.mediaurl && !imgError && (
-  post.type === 'video'
-    ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
-    : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-  <img
-    src={post.mediaurl}
-    alt={post.title}
-    onError={() => setImgError(true)}
-    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-  />
-  <div style={s.mediaOverlay} />
-</div>
-)}
+          {post.mediaurl && !imgError && (
+            post.type === 'video'
+              ? <video src={post.mediaurl} controls playsInline style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
+              : <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+                  <img
+                    src={post.mediaurl}
+                    alt={post.title}
+                    onError={() => setImgError(true)}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  <div style={s.mediaOverlay} />
+                </div>
+          )}
 
           <div style={{ padding: '20px 16px 16px' }}>
             {/* Автор */}
@@ -388,8 +342,8 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
               </p>
             )}
 
-            {/* Действия */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            {/* Только лайк */}
+            <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
               <button
                 onClick={handleLike}
                 disabled={likePending || !user}
@@ -404,15 +358,6 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
                 <HeartIcon filled={post.liked} />
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
               </button>
-
-              <div style={{ ...s.actionBtn, cursor: 'default' }}>
-                <CommentIcon />
-                <span>
-                  {comments.length > 0
-                    ? `${comments.length} ${comments.length === 1 ? 'комментарий' : 'комментариев'}`
-                    : 'Комментарии'}
-                </span>
-              </div>
             </div>
           </div>
         </article>
@@ -422,7 +367,9 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
           <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '.9375rem', fontWeight: 700, color: '#dceaff', marginBottom: 18 }}>
             Комментарии
             {comments.length > 0 && (
-              <span style={{ fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf', marginLeft: 8 }}>{comments.length}</span>
+              <span style={{ fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf', marginLeft: 8 }}>
+                {comments.length}
+              </span>
             )}
           </h2>
 
@@ -508,7 +455,7 @@ const handleComment = useCallback(async (e: React.FormEvent) => {
 
 export const dynamic = 'force-dynamic';
 
-// ─── Inline-иконки (без lucide-react) ────────────────────────────────────────
+// ─── Иконки ───────────────────────────────────────────────────────────────────
 
 function ArrowIcon() {
   return (
@@ -517,24 +464,10 @@ function ArrowIcon() {
     </svg>
   );
 }
-function DotsIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/>
-    </svg>
-  );
-}
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-    </svg>
-  );
-}
-function CommentIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
   );
 }
@@ -591,11 +524,6 @@ const s: Record<string, React.CSSProperties> = {
     background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)',
     color: '#7ecfff', cursor: 'pointer',
   },
-  iconBtn: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 34, height: 34, background: 'none', border: 'none',
-    color: '#8aa3bf', cursor: 'pointer',
-  },
   main: {
     maxWidth: 720, margin: '0 auto',
     padding: '16px 16px 48px',
@@ -618,7 +546,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: '.04em', textTransform: 'uppercase',
   },
   actionBtn: {
-    display: 'flex', alignItems: 'center', gap: 6,
+    display: 'inline-flex', alignItems: 'center', gap: 6,
     background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
     borderRadius: 999, padding: '.35rem .75rem',
     cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf',
