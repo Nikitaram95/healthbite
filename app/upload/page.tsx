@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,18 +16,39 @@ const API = process.env.NEXT_PUBLIC_API_URL || '';
 
 export default function UploadPage() {
   const router = useRouter();
-  const { user, getToken } = useAuth();
+  const { user, loading: authLoading, getToken } = useAuth();
 
-  const [title, setTitle]       = useState('');
-  const [description, setDesc]  = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDesc] = useState('');
   const [category, setCategory] = useState('health');
-  const [file, setFile]         = useState<File | null>(null);
-  const [preview, setPreview]   = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isVideo = file?.type.startsWith('video/');
+
+  // Проверка админа при загрузке страницы
+  useEffect(() => {
+    if (authLoading) return;
+    
+    // Если нет пользователя или не админ - редирект
+    if (!user || !user.isadmin) {
+      router.replace('/feed');
+      return;
+    }
+  }, [user, authLoading, router]);
+
+  // Пока идет проверка авторизации или пользователь не админ - показываем лоадер
+  if (authLoading || !user || !user.isadmin) {
+    return (
+      <div style={s.loaderPage}>
+        <div style={s.loaderSpinner} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -50,7 +71,10 @@ export default function UploadPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) { setError('Введите заголовок'); return; }
+    if (!title.trim()) { 
+      setError('Введите заголовок'); 
+      return; 
+    }
     setError('');
     setLoading(true);
 
@@ -69,7 +93,7 @@ export default function UploadPage() {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            action:   'getvideouploadurl',   // ← имя из бэкенда
+            action: 'getvideouploadurl',
             filename: file.name,
           }),
         });
@@ -88,15 +112,14 @@ export default function UploadPage() {
       // ── Картинка: конвертируем в base64 → отдаём бэкенду ──
       if (file && !isVideo) {
         const b64 = await toBase64(file);
-        // Загружаем картинку через отдельный action
         const imgRes = await fetch(`${API}/upload`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            action:      'uploadimage',      // ← см. новый action ниже
+            action: 'uploadimage',
             imageBase64: b64,
-            imageName:   file.name,
-            imageMime:   file.type,
+            imageName: file.name,
+            imageMime: file.type,
           }),
         });
         const imgData = await imgRes.json();
@@ -109,12 +132,12 @@ export default function UploadPage() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          action:      'addpost',            // ← имя из бэкенда
-          title:       title.trim(),
+          action: 'addpost',
+          title: title.trim(),
           description: description.trim(),
-          categoryid:  category,
-          mediaurl:    mediaurl,
-          type:        isVideo ? 'video' : (file ? 'image' : 'text'),
+          categoryid: category,
+          mediaurl: mediaurl,
+          type: isVideo ? 'video' : (file ? 'image' : 'text'),
         }),
       });
       const data = await res.json();
@@ -145,7 +168,6 @@ export default function UploadPage() {
 
       <main style={s.main}>
         <form onSubmit={handleSubmit} style={s.form} noValidate>
-
           <div style={s.fg}>
             <label style={s.label}>Медиафайл</label>
             {!file ? (
@@ -172,7 +194,13 @@ export default function UploadPage() {
                 <span style={s.fileName}>{file.name}</span>
               </div>
             )}
-            <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleFile}/>
+            <input 
+              ref={fileRef} 
+              type="file" 
+              accept="image/*,video/*" 
+              style={{ display: 'none' }} 
+              onChange={handleFile}
+            />
           </div>
 
           <div style={s.fg}>
@@ -180,10 +208,13 @@ export default function UploadPage() {
               Заголовок <span style={{ color: '#e05c8a' }}>*</span>
             </label>
             <input
-              id="title" type="text"
+              id="title" 
+              type="text"
               placeholder="Введите заголовок"
-              value={title} onChange={e => setTitle(e.target.value)}
-              maxLength={120} style={s.input}
+              value={title} 
+              onChange={e => setTitle(e.target.value)}
+              maxLength={120} 
+              style={s.input}
             />
             <span style={s.counter}>{title.length} / 120</span>
           </div>
@@ -191,9 +222,13 @@ export default function UploadPage() {
           <div style={s.fg}>
             <label style={s.label} htmlFor="desc">Описание</label>
             <textarea
-              id="desc" placeholder="Расскажите подробнее..."
-              value={description} onChange={e => setDesc(e.target.value)}
-              maxLength={1000} rows={4} style={s.textarea}
+              id="desc" 
+              placeholder="Расскажите подробнее..."
+              value={description} 
+              onChange={e => setDesc(e.target.value)}
+              maxLength={1000} 
+              rows={4} 
+              style={s.textarea}
             />
             <span style={s.counter}>{description.length} / 1000</span>
           </div>
@@ -203,8 +238,12 @@ export default function UploadPage() {
             <div style={s.catGrid}>
               {CATEGORIES.map(c => (
                 <button
-                  key={c.id} type="button"
-                  style={{ ...s.catChip, ...(category === c.id ? s.catChipActive : {}) }}
+                  key={c.id} 
+                  type="button"
+                  style={{ 
+                    ...s.catChip, 
+                    ...(category === c.id ? s.catChipActive : {}) 
+                  }}
                   onClick={() => setCategory(c.id)}
                 >
                   {c.label}
@@ -216,9 +255,14 @@ export default function UploadPage() {
           {error && <p style={s.error}>{error}</p>}
 
           <button type="submit" style={s.submitBtn} disabled={loading}>
-            {loading ? <><Spinner /> Публикуем...</> : 'Опубликовать'}
+            {loading ? (
+              <>
+                <Spinner /> Публикуем...
+              </>
+            ) : (
+              'Опубликовать'
+            )}
           </button>
-
         </form>
       </main>
     </div>
@@ -228,7 +272,7 @@ export default function UploadPage() {
 function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
-    r.onload  = () => resolve((r.result as string).split(',')[1]);
+    r.onload = () => resolve((r.result as string).split(',')[1]);
     r.onerror = reject;
     r.readAsDataURL(file);
   });
@@ -238,7 +282,6 @@ function Spinner() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
       style={{ animation: 'spin .7s linear infinite' }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <circle cx="12" cy="12" r="10" strokeOpacity=".25"/>
       <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/>
     </svg>
@@ -246,28 +289,151 @@ function Spinner() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page:         { minHeight: '100dvh', background: '#f7f6f2', fontFamily: 'system-ui,sans-serif' },
-  header:       { background: '#fff', borderBottom: '1px solid #e8e6e1', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner:  { maxWidth: 640, margin: '0 auto', padding: '0 1rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  back:         { display: 'flex', alignItems: 'center', gap: '.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.875rem', color: '#7a7974', width: 80 },
-  headerTitle:  { fontSize: '1rem', fontWeight: 700, color: '#28251d' },
-  main:         { maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem 4rem' },
-  form:         { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
-  fg:           { display: 'flex', flexDirection: 'column', gap: '.375rem' },
-  label:        { fontSize: '.875rem', fontWeight: 500, color: '#28251d' },
-  dropzone:     { border: '2px dashed #d4d1ca', borderRadius: 12, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem', cursor: 'pointer', background: '#fafaf8', width: '100%' },
-  dzText:       { fontSize: '.9375rem', fontWeight: 500, color: '#28251d' },
-  dzHint:       { fontSize: '.8125rem', color: '#bab9b4' },
-  previewWrap:  { position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' },
+  page: { minHeight: '100dvh', background: '#f7f6f2', fontFamily: 'system-ui,sans-serif' },
+  loaderPage: { 
+    minHeight: '100dvh', 
+    background: '#f7f6f2', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  loaderSpinner: {
+    width: 32,
+    height: 32,
+    border: '3px solid #d4d1ca',
+    borderTopColor: '#01696f',
+    borderRadius: '50%',
+    animation: 'spin .7s linear infinite'
+  },
+  header: { background: '#fff', borderBottom: '1px solid #e8e6e1', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner: { 
+    maxWidth: 640, 
+    margin: '0 auto', 
+    padding: '0 1rem', 
+    height: 56, 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'space-between' 
+  },
+  back: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '.25rem', 
+    background: 'none', 
+    border: 'none', 
+    cursor: 'pointer', 
+    fontSize: '.875rem', 
+    color: '#7a7974', 
+    width: 80 
+  },
+  headerTitle: { fontSize: '1rem', fontWeight: 700, color: '#28251d' },
+  main: { maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem 4rem' },
+  form: { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
+  fg: { display: 'flex', flexDirection: 'column', gap: '.375rem' },
+  label: { fontSize: '.875rem', fontWeight: 500, color: '#28251d' },
+  dropzone: { 
+    border: '2px dashed #d4d1ca', 
+    borderRadius: 12, 
+    padding: '2rem 1rem', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    gap: '.5rem', 
+    cursor: 'pointer', 
+    background: '#fafaf8', 
+    width: '100%' 
+  },
+  dzText: { fontSize: '.9375rem', fontWeight: 500, color: '#28251d' },
+  dzHint: { fontSize: '.8125rem', color: '#bab9b4' },
+  previewWrap: { position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#111' },
   previewMedia: { width: '100%', maxHeight: 320, objectFit: 'cover' as const, display: 'block' },
-  removeBtn:    { position: 'absolute', top: '.5rem', right: '.5rem', background: 'rgba(0,0,0,.65)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' },
-  fileName:     { position: 'absolute', bottom: '.5rem', left: '.5rem', fontSize: '.75rem', color: '#fff', background: 'rgba(0,0,0,.5)', padding: '.2rem .5rem', borderRadius: 6 },
-  input:        { height: 48, padding: '0 .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '1rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' as const },
-  textarea:     { padding: '.75rem .875rem', border: '1.5px solid #d4d1ca', borderRadius: 8, fontSize: '.9375rem', color: '#28251d', background: '#fff', outline: 'none', width: '100%', resize: 'vertical' as const, fontFamily: 'inherit', boxSizing: 'border-box' as const, lineHeight: 1.6 },
-  counter:      { fontSize: '.75rem', color: '#bab9b4', textAlign: 'right' as const },
-  catGrid:      { display: 'flex', flexWrap: 'wrap' as const, gap: '.5rem' },
-  catChip:      { padding: '.375rem .875rem', borderRadius: 999, border: '1.5px solid #d4d1ca', background: 'none', fontSize: '.875rem', color: '#7a7974', cursor: 'pointer', fontWeight: 500 },
-  catChipActive:{ background: '#01696f', borderColor: '#01696f', color: '#fff' },
-  error:        { fontSize: '.875rem', color: '#a12c7b', background: '#f9f2f6', padding: '.625rem .875rem', borderRadius: 8 },
-  submitBtn:    { height: 52, background: '#01696f', color: '#fff', fontSize: '1rem', fontWeight: 600, border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.5rem' },
+  removeBtn: { 
+    position: 'absolute', 
+    top: '.5rem', 
+    right: '.5rem', 
+    background: 'rgba(0,0,0,.65)', 
+    border: 'none', 
+    borderRadius: '50%', 
+    width: 28, 
+    height: 28, 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    cursor: 'pointer', 
+    color: '#fff' 
+  },
+  fileName: { 
+    position: 'absolute', 
+    bottom: '.5rem', 
+    left: '.5rem', 
+    fontSize: '.75rem', 
+    color: '#fff', 
+    background: 'rgba(0,0,0,.5)', 
+    padding: '.2rem .5rem', 
+    borderRadius: 6 
+  },
+  input: { 
+    height: 48, 
+    padding: '0 .875rem', 
+    border: '1.5px solid #d4d1ca', 
+    borderRadius: 8, 
+    fontSize: '1rem', 
+    color: '#28251d', 
+    background: '#fff', 
+    outline: 'none', 
+    width: '100%', 
+    boxSizing: 'border-box' as const 
+  },
+  textarea: { 
+    padding: '.75rem .875rem', 
+    border: '1.5px solid #d4d1ca', 
+    borderRadius: 8, 
+    fontSize: '.9375rem', 
+    color: '#28251d', 
+    background: '#fff', 
+    outline: 'none', 
+    width: '100%', 
+    resize: 'vertical' as const, 
+    fontFamily: 'inherit', 
+    boxSizing: 'border-box' as const, 
+    lineHeight: 1.6 
+  },
+  counter: { fontSize: '.75rem', color: '#bab9b4', textAlign: 'right' as const },
+  catGrid: { display: 'flex', flexWrap: 'wrap' as const, gap: '.5rem' },
+  catChip: { 
+    padding: '.375rem .875rem', 
+    borderRadius: 999, 
+    border: '1.5px solid #d4d1ca', 
+    background: 'none', 
+    fontSize: '.875rem', 
+    color: '#7a7974', 
+    cursor: 'pointer', 
+    fontWeight: 500 
+  },
+  catChipActive: { 
+    background: '#01696f', 
+    borderColor: '#01696f', 
+    color: '#fff' 
+  },
+  error: { 
+    fontSize: '.875rem', 
+    color: '#a12c7b', 
+    background: '#f9f2f6', 
+    padding: '.625rem .875rem', 
+    borderRadius: 8 
+  },
+  submitBtn: { 
+    height: 52, 
+    background: '#01696f', 
+    color: '#fff', 
+    fontSize: '1rem', 
+    fontWeight: 600, 
+    border: 'none', 
+    borderRadius: 10, 
+    cursor: 'pointer', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: '.5rem' 
+  },
 };

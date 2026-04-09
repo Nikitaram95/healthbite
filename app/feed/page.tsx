@@ -115,11 +115,9 @@ async function toggleLike(
 
 async function sendView(postid: string): Promise<void> {
   try {
-    console.log('[VIEW] sending for', postid);
-    const res = await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
-    console.log('[VIEW] response status:', res.status);
-  } catch (e) {
-    console.warn('[VIEW] failed:', e);
+    await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
+  } catch {
+    // тихо
   }
 }
 
@@ -197,33 +195,24 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
   const catLabel = getCategoryLabel(post.categoryid);
   const cat      = getCatStyle(post.categoryid);
 
-  // 🔥 Intersection Observer — threshold снижен до 0.1 для надёжности
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) {
-      console.warn('[VIEW] cardRef is null for', post.postid);
-      return;
-    }
+useEffect(() => {
+  const el = cardRef.current;
+  if (!el) return;
 
-    console.log('[VIEW] observer attached for', post.postid);
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && !viewedRef.current) {
+        viewedRef.current = true;
+        onView(post.postid);
+        observer.disconnect();
+      }
+    },
+    { threshold: 0.1 }
+  );
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        console.log('[VIEW] intersection:', post.postid, 'ratio:', entry.intersectionRatio, 'isIntersecting:', entry.isIntersecting);
-        if (entry.isIntersecting && !viewedRef.current) {
-          viewedRef.current = true;
-          console.log('[VIEW] triggered for', post.postid);
-          onView(post.postid);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 } // 🔥 снижено с 0.5 до 0.1
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [post.postid, onView]);
+  observer.observe(el);
+  return () => observer.disconnect();
+}, [post.postid, onView]);
 
   function handleLike(e: React.MouseEvent) {
     e.stopPropagation();
