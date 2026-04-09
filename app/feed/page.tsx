@@ -19,7 +19,7 @@ interface Post {
   likes:         number;
   liked:         boolean;
   commentsCount: number;
-  views:         number; // 🔥 счётчик просмотров
+  views:         number;
 }
 
 // ─── Категории ────────────────────────────────────────────────────────────────
@@ -113,12 +113,13 @@ async function toggleLike(
   return res.json();
 }
 
-// 🔥 Отправить просмотр на бэкенд
 async function sendView(postid: string): Promise<void> {
   try {
-    await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
-  } catch {
-    // тихо — не критично
+    console.log('[VIEW] sending for', postid);
+    const res = await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
+    console.log('[VIEW] response status:', res.status);
+  } catch (e) {
+    console.warn('[VIEW] failed:', e);
   }
 }
 
@@ -183,33 +184,41 @@ interface PostCardProps {
   onLike:     (postid: string, liked: boolean) => void;
   onNavigate: (postid: string) => void;
   onComments: (postid: string) => void;
-  onView:     (postid: string) => void; // 🔥
+  onView:     (postid: string) => void;
 }
 
 function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: PostCardProps) {
   const [popping,  setPopping]  = useState(false);
   const [imgError, setImgError] = useState(false);
   const cardRef   = useRef<HTMLElement>(null);
-  const viewedRef = useRef(false); // 🔥 не считать дважды
+  const viewedRef = useRef(false);
 
   const relTime  = getRelativeTime(post.createdat);
   const catLabel = getCategoryLabel(post.categoryid);
   const cat      = getCatStyle(post.categoryid);
 
-  // 🔥 Intersection Observer — считаем просмотр когда 50% карточки видно
+  // 🔥 Intersection Observer — threshold снижен до 0.1 для надёжности
   useEffect(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el) {
+      console.warn('[VIEW] cardRef is null for', post.postid);
+      return;
+    }
+
+    console.log('[VIEW] observer attached for', post.postid);
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !viewedRef.current) {
+        const entry = entries[0];
+        console.log('[VIEW] intersection:', post.postid, 'ratio:', entry.intersectionRatio, 'isIntersecting:', entry.isIntersecting);
+        if (entry.isIntersecting && !viewedRef.current) {
           viewedRef.current = true;
+          console.log('[VIEW] triggered for', post.postid);
           onView(post.postid);
           observer.disconnect();
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.1 } // 🔥 снижено с 0.5 до 0.1
     );
 
     observer.observe(el);
@@ -298,7 +307,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
             </span>
           </button>
 
-          {/* 🔥 Просмотры */}
+          {/* Просмотры */}
           <div style={s.viewsCount}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -328,7 +337,6 @@ export default function FeedScreen() {
   const [searchQuery,    setSearchQuery]    = useState('');
   const [likePending,    setLikePending]    = useState<Set<string>>(new Set());
 
-  // 🔥 Set постов, которые уже были засчитаны в этой сессии
   const viewedPostsRef = useRef<Set<string>>(new Set());
 
   // ─── Загрузка ─────────────────────────────────────────────────────────────
@@ -349,13 +357,12 @@ export default function FeedScreen() {
 
   useEffect(() => { loadPosts(activeCategory); }, [activeCategory, loadPosts]);
 
-  // ─── Просмотр (Intersection Observer) ────────────────────────────────────
+  // ─── Просмотр ─────────────────────────────────────────────────────────────
 
   const handleView = useCallback(async (postid: string) => {
     if (viewedPostsRef.current.has(postid)) return;
     viewedPostsRef.current.add(postid);
 
-    // Оптимистично обновляем счётчик в UI
     setPosts((prev) =>
       prev.map((p) =>
         p.postid === postid ? { ...p, views: p.views + 1 } : p
@@ -542,7 +549,7 @@ export default function FeedScreen() {
                   onLike={handleLike}
                   onNavigate={handleNavigate}
                   onComments={handleComments}
-                  onView={handleView} // 🔥
+                  onView={handleView}
                 />
               ))}
             </div>
@@ -736,11 +743,10 @@ const s: Record<string, React.CSSProperties> = {
     padding: '.3rem .5rem',
     transition: 'color .18s ease',
   },
-  // 🔥 Счётчик просмотров
   viewsCount: {
     display: 'flex', alignItems: 'center', gap: '.3rem',
     fontSize: '.8125rem', color: '#4a6a8a',
-    marginLeft: 'auto', // прижимаем вправо
+    marginLeft: 'auto',
     padding: '.3rem .5rem',
     fontVariantNumeric: 'tabular-nums',
   },
