@@ -8,23 +8,25 @@ import { useAuth } from '@/hooks/useAuth';
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
 interface Post {
-  postid: string;
-  title: string;
-  description: string;
-  mediaurl?: string;
-  type: string;
-  categoryid: string;
-  author: string;
-  createdat: string;
-  likes: number;
-  liked: boolean;
+  postid:        string;
+  title:         string;
+  description:   string;
+  mediaurl?:     string;
+  type:          string;
+  categoryid:    string;
+  author:        string;
+  createdat:     string;
+  likes:         number;
+  liked:         boolean;
+  views:         number; // 🔥
+  commentsCount: number;
 }
 
 interface Comment {
   commentid: string;
-  postid: string;
-  author: string;
-  text: string;
+  postid:    string;
+  author:    string;
+  text:      string;
   createdat: string;
 }
 
@@ -58,27 +60,13 @@ function getCategoryLabel(key: string) {
   return CATEGORIES[key] ?? key;
 }
 
-/**
- * Универсальный парсер: принимает
- *  - Unix ms (число или строка)          "1712345678901"
- *  - Unix seconds (число или строка)     "1712345678"
- *  - ISO 8601                            "2024-04-05T12:00:00Z"
- *  - любой формат, понятный Date()
- * Возвращает миллисекунды или 0, если разобрать не удалось.
- */
 function parseTimestamp(raw: string | number | null | undefined): number {
   if (raw === null || raw === undefined || raw === '') return 0;
-
   const str = String(raw).trim();
-
-  // Чисто цифровая строка — Unix timestamp
   if (/^\d+$/.test(str)) {
     const n = Number(str);
-    // Если меньше 1e12 — скорее всего секунды, переводим в мс
     return n < 1_000_000_000_000 ? n * 1000 : n;
   }
-
-  // ISO / RFC — пусть Date разберёт
   const ms = Date.parse(str);
   return isNaN(ms) ? 0 : ms;
 }
@@ -86,27 +74,20 @@ function parseTimestamp(raw: string | number | null | undefined): number {
 function getRelativeTime(raw: string | number | null | undefined): string {
   const ms = parseTimestamp(raw);
   if (!ms) return '';
-
   const diff    = Date.now() - ms;
-  if (diff < 0) return 'только что';           // сервер чуть опережает клиента
-
+  if (diff < 0) return 'только что';
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1)  return 'только что';
   if (minutes < 60) return `${minutes} мин назад`;
-
   const hours = Math.floor(minutes / 60);
   if (hours < 24)   return `${hours} ч назад`;
-
   const days = Math.floor(hours / 24);
   if (days === 1)   return '1 д назад';
   if (days < 7)     return `${days} д назад`;
-
   const weeks = Math.floor(days / 7);
   if (weeks < 5)    return `${weeks} нед назад`;
-
   const months = Math.floor(days / 30);
   if (months < 12)  return `${months} мес назад`;
-
   return `${Math.floor(months / 12)} г назад`;
 }
 
@@ -118,8 +99,7 @@ function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
     <div
       style={{
         width: size, height: size, borderRadius: '50%',
-        background: 'rgba(0,162,255,.15)',
-        border: '1px solid rgba(0,162,255,.25)',
+        background: 'rgba(0,162,255,.15)', border: '1px solid rgba(0,162,255,.25)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
       }}
@@ -177,9 +157,9 @@ function SkeletonComments() {
 // ─── Основной компонент ───────────────────────────────────────────────────────
 
 export default function PostPage() {
-  const { id }    = useParams<{ id: string }>();
-  const router    = useRouter();
-  const { user }  = useAuth();
+  const { id }   = useParams<{ id: string }>();
+  const router   = useRouter();
+  const { user } = useAuth();
 
   const [post,            setPost]            = useState<Post | null>(null);
   const [loadingPost,     setLoadingPost]     = useState(true);
@@ -191,7 +171,7 @@ export default function PostPage() {
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
 
-  // ─── Загрузка поста ──────────────────────────────────────────────────────
+  // ─── Загрузка поста ─────────────────────────────────────────────────────
 
   const loadPost = useCallback(async () => {
     if (!id) return;
@@ -209,7 +189,7 @@ export default function PostPage() {
     }
   }, [id, user?.phone, router]);
 
-  // ─── Загрузка комментариев ───────────────────────────────────────────────
+  // ─── Загрузка комментариев ──────────────────────────────────────────────
 
   const loadComments = useCallback(async () => {
     if (!id) return;
@@ -218,7 +198,6 @@ export default function PostPage() {
       const res  = await fetch(`${API}/post/${id}/comments`);
       if (!res.ok) throw new Error(`loadComments ${res.status}: ${await res.text()}`);
       const data = await res.json();
-      // Поддерживаем как массив напрямую, так и { comments: [...] }
       setComments(Array.isArray(data) ? data : Array.isArray(data?.comments) ? data.comments : []);
     } catch (e) {
       console.error('loadComments:', e);
@@ -230,7 +209,7 @@ export default function PostPage() {
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
-  // ─── Лайк ────────────────────────────────────────────────────────────────
+  // ─── Лайк ───────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async () => {
     if (!post || !user?.phone || likePending) return;
@@ -324,7 +303,7 @@ export default function PostPage() {
   const catBg    = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
   const catTxt   = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
 
-  // ─── Рендер ──────────────────────────────────────────────────────────────
+  // ─── Рендер ─────────────────────────────────────────────────────────────
 
   return (
     <div style={s.page}>
@@ -346,24 +325,23 @@ export default function PostPage() {
         {/* Пост */}
         <article style={{ ...s.card, marginBottom: 16 }}>
           {post.mediaurl && !imgError && (
-            post.type === 'video'
-              ? (
-                <video
+            post.type === 'video' ? (
+              <video
+                src={post.mediaurl}
+                controls playsInline
+                style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }}
+              />
+            ) : (
+              <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+                <img
                   src={post.mediaurl}
-                  controls playsInline
-                  style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }}
+                  alt={post.title}
+                  onError={() => setImgError(true)}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
-              ) : (
-                <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-                  <img
-                    src={post.mediaurl}
-                    alt={post.title}
-                    onError={() => setImgError(true)}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                  <div style={s.mediaOverlay} />
-                </div>
-              )
+                <div style={s.mediaOverlay} />
+              </div>
+            )
           )}
 
           <div style={{ padding: '20px 16px 16px' }}>
@@ -408,8 +386,13 @@ export default function PostPage() {
               </p>
             )}
 
-            {/* Лайк */}
-            <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            {/* 🔥 Действия: лайк + просмотры */}
+            <div style={{
+              paddingTop: 12,
+              borderTop: '1px solid rgba(255,255,255,.06)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              {/* Лайк */}
               <button
                 onClick={handleLike}
                 disabled={likePending || !user}
@@ -424,6 +407,30 @@ export default function PostPage() {
                 <HeartIcon filled={post.liked} />
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
               </button>
+
+              {/* Комментарии */}
+              <a
+                href="#comments"
+                style={{ ...s.actionBtn, textDecoration: 'none' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {post.commentsCount > 0 ? post.commentsCount : ''}
+                </span>
+              </a>
+
+              {/* 🔥 Просмотры */}
+              <div style={s.viewsCount}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {post.views > 0 ? post.views : ''}
+                </span>
+              </div>
             </div>
           </div>
         </article>
@@ -431,7 +438,6 @@ export default function PostPage() {
         {/* Комментарии */}
         <section id="comments" style={{ ...s.card, padding: '20px 16px' }}>
 
-          {/* Заголовок со счётчиком */}
           <h2 style={{
             fontFamily: 'Orbitron, sans-serif',
             fontSize: '.9375rem', fontWeight: 700,
@@ -441,8 +447,7 @@ export default function PostPage() {
             Комментарии
             {!loadingComments && comments.length > 0 && (
               <span style={{
-                fontSize: '.8125rem', fontWeight: 400,
-                color: '#8aa3bf',
+                fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf',
                 background: 'rgba(255,255,255,.06)',
                 padding: '1px 8px', borderRadius: 999,
               }}>
@@ -474,8 +479,7 @@ export default function PostPage() {
                     fontFamily: '"Exo 2", sans-serif',
                     outline: 'none',
                     background: 'rgba(255,255,255,.04)',
-                    color: '#dceaff',
-                    lineHeight: 1.5,
+                    color: '#dceaff', lineHeight: 1.5,
                   }}
                   onFocus={(e) => (e.target.style.borderColor = 'rgba(0,162,255,.45)')}
                   onBlur={(e)  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
@@ -494,7 +498,7 @@ export default function PostPage() {
                   style={{
                     ...s.btnPrimary,
                     opacity: sendingComment || !commentText.trim() ? 0.45 : 1,
-                    cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer',
+                    cursor:  sendingComment || !commentText.trim() ? 'default' : 'pointer',
                   }}
                 >
                   {sendingComment ? '...' : 'Отправить'}
@@ -520,32 +524,31 @@ export default function PostPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {comments.map((c) => {
-                const timeStr = getRelativeTime(c.createdat);
-                return (
-                  <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
-                    <AuthorAvatar name={c.author} size={32} />
-                    <div style={{
-                      flex: 1,
-                      background: 'rgba(255,255,255,.04)',
-                      borderRadius: 12, padding: '10px 14px',
-                      border: '1px solid rgba(255,255,255,.06)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>
-                          {c.author}
+              {comments.map((c) => (
+                <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
+                  <AuthorAvatar name={c.author} size={32} />
+                  <div style={{
+                    flex: 1,
+                    background: 'rgba(255,255,255,.04)',
+                    borderRadius: 12, padding: '10px 14px',
+                    border: '1px solid rgba(255,255,255,.06)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>
+                        {c.author}
+                      </span>
+                      {getRelativeTime(c.createdat) && (
+                        <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>
+                          {getRelativeTime(c.createdat)}
                         </span>
-                        {timeStr && (
-                          <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>{timeStr}</span>
-                        )}
-                      </div>
-                      <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6 }}>
-                        {c.text}
-                      </p>
+                      )}
                     </div>
+                    <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6 }}>
+                      {c.text}
+                    </p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -562,7 +565,7 @@ function ArrowIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"/>
+      <line x1="19" y1="12" x2="5"  y2="12"/>
       <polyline points="12 19 5 12 12 5"/>
     </svg>
   );
@@ -600,8 +603,7 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: '100dvh',
     background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)',
     fontFamily: '"Exo 2", system-ui, sans-serif',
-    color: '#f4f8ff',
-    position: 'relative',
+    color: '#f4f8ff', position: 'relative',
   },
   gridBg: {
     position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
@@ -662,6 +664,13 @@ const s: Record<string, React.CSSProperties> = {
   actionBtnLiked: {
     borderColor: 'rgba(239,68,68,.4)', color: '#ff8e8e',
     background: 'rgba(239,68,68,.1)', boxShadow: '0 0 10px rgba(239,68,68,.2)',
+  },
+  // 🔥 Просмотры
+  viewsCount: {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    fontSize: '.8125rem', color: '#4a6a8a',
+    marginLeft: 'auto',
+    fontVariantNumeric: 'tabular-nums',
   },
   btnPrimary: {
     display: 'inline-flex', alignItems: 'center', gap: 6,

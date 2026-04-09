@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,17 +8,18 @@ import { useAuth } from '@/hooks/useAuth';
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
 interface Post {
-  postid:       string;
-  author:       string;
-  categoryid:   string;
-  description:  string;
-  mediaurl:     string;
-  title:        string;
-  type:         string;
-  createdat:    string;
-  likes:        number;
-  liked:        boolean;
+  postid:        string;
+  author:        string;
+  categoryid:    string;
+  description:   string;
+  mediaurl:      string;
+  title:         string;
+  type:          string;
+  createdat:     string;
+  likes:         number;
+  liked:         boolean;
   commentsCount: number;
+  views:         number; // 🔥 счётчик просмотров
 }
 
 // ─── Категории ────────────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ function getRelativeTime(createdat: string): string {
   if (!createdat) return '';
   const ms = Number(createdat);
   if (!ms || isNaN(ms)) return '';
-  const diff = Date.now() - ms;
+  const diff    = Date.now() - ms;
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1)  return 'только что';
   if (minutes < 60) return `${minutes} мин назад`;
@@ -89,7 +90,7 @@ async function fetchPosts(category: string, userId: string): Promise<Post[]> {
   if (category && category !== 'all') params.set('category', category);
   if (userId) params.set('userId', userId);
   const url = `${API}/posts${params.toString() ? `?${params.toString()}` : ''}`;
-  const res = await fetch(url);
+  const res  = await fetch(url);
   if (!res.ok) throw new Error(`Ошибка загрузки: ${res.status}`);
   return res.json();
 }
@@ -112,54 +113,40 @@ async function toggleLike(
   return res.json();
 }
 
+// 🔥 Отправить просмотр на бэкенд
+async function sendView(postid: string): Promise<void> {
+  try {
+    await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
+  } catch {
+    // тихо — не критично
+  }
+}
+
 // ─── Аватар пользователя ─────────────────────────────────────────────────────
 
 function UserAvatar({ user, size = 36 }: { user: any; size?: number }) {
-  const letter = (user.name || user.phone || '?').slice(0, 1).toUpperCase();
+  const letter    = (user.name || user.phone || '?').slice(0, 1).toUpperCase();
   const hasAvatar = user.avatar_url && user.avatar_url !== '';
-  
+
   return (
-    <div 
-      style={{
-        position: 'relative', 
-        width: size, 
-        height: size, 
-        borderRadius: '50%',
-        overflow: 'hidden',
-        flexShrink: 0,
-        cursor: 'pointer'
-      }}
-    >
-      {hasAvatar ? (
+    <div style={{ position: 'relative', width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, cursor: 'pointer' }}>
+      {hasAvatar && (
         <img
           src={user.avatar_url}
           alt={user.name || user.phone}
-          style={{
-            width: '100%', 
-            height: '100%', 
-            objectFit: 'cover',
-            display: 'block'
-          }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display', 'flex');
           }}
         />
-      ) : null}
-      <div 
-        style={{
-          width: '100%', 
-          height: '100%',
-          background: 'rgba(0,162,255,.15)',
-          border: '1px solid rgba(0,162,255,.25)',
-          display: hasAvatar ? 'none' : 'flex',
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: '#7ecfff', 
-          fontSize: size * 0.4, 
-          fontWeight: 700
-        }}
-      >
+      )}
+      <div style={{
+        width: '100%', height: '100%',
+        background: 'rgba(0,162,255,.15)', border: '1px solid rgba(0,162,255,.25)',
+        display: hasAvatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#7ecfff', fontSize: size * 0.4, fontWeight: 700,
+      }}>
         {letter}
       </div>
     </div>
@@ -196,14 +183,38 @@ interface PostCardProps {
   onLike:     (postid: string, liked: boolean) => void;
   onNavigate: (postid: string) => void;
   onComments: (postid: string) => void;
+  onView:     (postid: string) => void; // 🔥
 }
 
-function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProps) {
+function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: PostCardProps) {
   const [popping,  setPopping]  = useState(false);
   const [imgError, setImgError] = useState(false);
+  const cardRef   = useRef<HTMLElement>(null);
+  const viewedRef = useRef(false); // 🔥 не считать дважды
+
   const relTime  = getRelativeTime(post.createdat);
   const catLabel = getCategoryLabel(post.categoryid);
   const cat      = getCatStyle(post.categoryid);
+
+  // 🔥 Intersection Observer — считаем просмотр когда 50% карточки видно
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !viewedRef.current) {
+          viewedRef.current = true;
+          onView(post.postid);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [post.postid, onView]);
 
   function handleLike(e: React.MouseEvent) {
     e.stopPropagation();
@@ -219,7 +230,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
   }
 
   return (
-    <article style={{ ...s.card, cursor: 'pointer' }} onClick={() => onNavigate(post.postid)}>
+    <article ref={cardRef} style={{ ...s.card, cursor: 'pointer' }} onClick={() => onNavigate(post.postid)}>
       {post.mediaurl && !imgError && (
         <div style={s.mediaWrap}>
           {post.type === 'video' ? (
@@ -264,6 +275,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
         <div style={s.cardFooter}>
+          {/* Лайк */}
           <button
             className={popping ? 'like-pop' : ''}
             style={{ ...s.likeBtn, ...(post.liked ? s.likeBtnActive : {}) }}
@@ -273,9 +285,10 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
             <svg width="14" height="14" viewBox="0 0 24 24" fill={post.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
-            <span>{post.likes}</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
           </button>
 
+          {/* Комментарии */}
           <button onClick={handleComments} aria-label="Комментарии" style={s.commentBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -284,6 +297,17 @@ function PostCard({ post, userId, onLike, onNavigate, onComments }: PostCardProp
               {post.commentsCount > 0 ? post.commentsCount : ''}
             </span>
           </button>
+
+          {/* 🔥 Просмотры */}
+          <div style={s.viewsCount}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {post.views > 0 ? post.views : ''}
+            </span>
+          </div>
         </div>
       </div>
     </article>
@@ -297,14 +321,17 @@ export default function FeedScreen() {
   const { user } = useAuth();
   const userId = user?.phone ?? '';
 
-  const [posts,           setPosts]           = useState<Post[]>([]);
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState<string | null>(null);
-  const [activeCategory,  setActiveCategory]  = useState('all');
-  const [searchQuery,     setSearchQuery]     = useState('');
-  const [likePending,     setLikePending]     = useState<Set<string>>(new Set());
+  const [posts,          setPosts]          = useState<Post[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [likePending,    setLikePending]    = useState<Set<string>>(new Set());
 
-  // ─── Загрузка ───────────────────────────────────────────────────────────────
+  // 🔥 Set постов, которые уже были засчитаны в этой сессии
+  const viewedPostsRef = useRef<Set<string>>(new Set());
+
+  // ─── Загрузка ─────────────────────────────────────────────────────────────
 
   const loadPosts = useCallback(async (category: string) => {
     setLoading(true);
@@ -322,7 +349,23 @@ export default function FeedScreen() {
 
   useEffect(() => { loadPosts(activeCategory); }, [activeCategory, loadPosts]);
 
-  // ─── Лайк ───────────────────────────────────────────────────────────────────
+  // ─── Просмотр (Intersection Observer) ────────────────────────────────────
+
+  const handleView = useCallback(async (postid: string) => {
+    if (viewedPostsRef.current.has(postid)) return;
+    viewedPostsRef.current.add(postid);
+
+    // Оптимистично обновляем счётчик в UI
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.postid === postid ? { ...p, views: p.views + 1 } : p
+      )
+    );
+
+    await sendView(postid);
+  }, []);
+
+  // ─── Лайк ─────────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async (postid: string, currentLiked: boolean) => {
     if (!userId) return;
@@ -375,32 +418,24 @@ export default function FeedScreen() {
     }
   }, [userId]);
 
-  // ─── Навигация ──────────────────────────────────────────────────────────────
+  // ─── Навигация ────────────────────────────────────────────────────────────
 
-  function handleNavigate(postid: string) {
-    router.push(`/post/${postid}`);
-  }
+  function handleNavigate(postid: string) { router.push(`/post/${postid}`); }
+  function handleComments(postid: string) { router.push(`/post/${postid}#comments`); }
+  function handleProfile()               { if (user) router.push('/profile'); }
 
-  function handleComments(postid: string) {
-    router.push(`/post/${postid}#comments`);
-  }
-
-  function handleProfile() {
-    if (user) router.push('/profile');
-  }
-
-  // ─── Фильтрация ─────────────────────────────────────────────────────────────
+  // ─── Фильтрация ───────────────────────────────────────────────────────────
 
   const q = searchQuery.toLowerCase();
   const filteredPosts = searchQuery.trim()
-    ? posts.filter(p =>
+    ? posts.filter((p) =>
         (p.title       || '').toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q) ||
         (p.author      || '').toLowerCase().includes(q)
       )
     : posts;
 
-  // ─── Рендер ─────────────────────────────────────────────────────────────────
+  // ─── Рендер ───────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -408,10 +443,8 @@ export default function FeedScreen() {
       <div style={s.page}>
         <div style={s.gridBg} />
 
-        {/* 🔥 ПРОФИЛЬ В ШАПКЕ */}
         <header style={s.header}>
           <div style={s.headerInner}>
-            {/* Аватар + Имя */}
             {user ? (
               <button onClick={handleProfile} style={s.profileBtn} aria-label="Профиль">
                 <UserAvatar user={user} size={40} />
@@ -423,12 +456,9 @@ export default function FeedScreen() {
                 </div>
               </button>
             ) : (
-              <Link href="/login" style={s.loginLink}>
-                Войти
-              </Link>
+              <Link href="/login" style={s.loginLink}>Войти</Link>
             )}
 
-            {/* Поиск */}
             <div style={s.searchWrap}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8aa3bf" strokeWidth="2" style={{ flexShrink: 0 }}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -437,7 +467,7 @@ export default function FeedScreen() {
                 type="text"
                 placeholder="Поиск по постам..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 style={s.searchInput}
               />
               {searchQuery && (
@@ -493,7 +523,7 @@ export default function FeedScreen() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                   <line x1="12" y1="18" x2="12" y2="12"/>
-                  <line x1="9" y1="15" x2="15" y2="15"/>
+                  <line x1="9"  y1="15" x2="15" y2="15"/>
                 </svg>
               </div>
               <p style={{ color: '#8aa3bf', fontSize: '.9375rem' }}>
@@ -504,7 +534,7 @@ export default function FeedScreen() {
 
           {!loading && !error && filteredPosts.length > 0 && (
             <div style={s.grid}>
-              {filteredPosts.map(post => (
+              {filteredPosts.map((post) => (
                 <PostCard
                   key={post.postid}
                   post={post}
@@ -512,6 +542,7 @@ export default function FeedScreen() {
                   onLike={handleLike}
                   onNavigate={handleNavigate}
                   onComments={handleComments}
+                  onView={handleView} // 🔥
                 />
               ))}
             </div>
@@ -561,26 +592,21 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 700, margin: '0 auto', padding: '12px 16px 0',
     display: 'flex', flexDirection: 'column', gap: 12,
   },
-  // 🔥 ПРОФИЛЬНЫЕ СТИЛИ
   profileBtn: {
     display: 'flex', alignItems: 'center', gap: 12,
     background: 'none', border: 'none', cursor: 'pointer',
     padding: '8px 0', width: '100%',
   },
-  profileInfo: {
-    flex: 1, minWidth: 0,
-  },
+  profileInfo: { flex: 1, minWidth: 0 },
   profileName: {
     fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
-  profileStatus: {
-    fontSize: '.75rem', color: '#8aa3bf', marginTop: 2,
-  },
+  profileStatus: { fontSize: '.75rem', color: '#8aa3bf', marginTop: 2 },
   loginLink: {
     display: 'flex', alignItems: 'center', gap: 8,
     padding: '12px 16px', background: 'rgba(0,162,255,.1)',
-    border: '1px solid rgba(0,162,255,.25)', 
+    border: '1px solid rgba(0,162,255,.25)',
     borderRadius: 12, color: '#7ecfff',
     textDecoration: 'none', fontWeight: 600, fontSize: '.875rem',
     cursor: 'pointer', transition: 'all .18s ease',
@@ -596,9 +622,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '.9rem', color: '#dceaff',
     fontFamily: '"Exo 2", sans-serif',
   },
-  catsWrap: {
-    overflowX: 'auto', scrollbarWidth: 'none',
-  },
+  catsWrap: { overflowX: 'auto', scrollbarWidth: 'none' },
   catsInner: {
     maxWidth: 700, margin: '0 auto', padding: '0 16px',
     display: 'flex', gap: '.5rem', height: 48, alignItems: 'center',
@@ -623,13 +647,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: '1.25rem 1rem 5rem',
     position: 'relative', zIndex: 1,
   },
-  grid: {
-    display: 'flex', flexDirection: 'column', gap: '1rem',
-  },
-  center: {
-    display: 'flex', justifyContent: 'center', alignItems: 'center',
-    padding: '5rem 0',
-  },
+  grid: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '5rem 0' },
   emptyIcon: {
     width: 72, height: 72, borderRadius: 20,
     background: 'rgba(0,162,255,.08)',
@@ -658,9 +677,7 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(transparent, rgba(9,17,29,.85))',
     pointerEvents: 'none',
   },
-  cardBody: {
-    padding: '1rem 1.125rem 1.125rem',
-  },
+  cardBody: { padding: '1rem 1.125rem 1.125rem' },
   authorAvatar: {
     width: 36, height: 36, borderRadius: '50%',
     background: 'rgba(0,162,255,.15)',
@@ -677,9 +694,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 999, fontSize: '.6875rem', fontWeight: 700,
     letterSpacing: '.04em', textTransform: 'uppercase' as const,
   },
-  cardDate: {
-    fontSize: '.75rem', color: '#8aa3bf',
-  },
+  cardDate: { fontSize: '.75rem', color: '#8aa3bf' },
   cardTitle: {
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
@@ -696,7 +711,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBoxOrient: 'vertical' as const,
   },
   cardFooter: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    display: 'flex', alignItems: 'center', gap: '.5rem',
     paddingTop: '.75rem',
     borderTop: '1px solid rgba(255,255,255,.06)',
   },
@@ -720,5 +735,13 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: '"Exo 2", sans-serif',
     padding: '.3rem .5rem',
     transition: 'color .18s ease',
+  },
+  // 🔥 Счётчик просмотров
+  viewsCount: {
+    display: 'flex', alignItems: 'center', gap: '.3rem',
+    fontSize: '.8125rem', color: '#4a6a8a',
+    marginLeft: 'auto', // прижимаем вправо
+    padding: '.3rem .5rem',
+    fontVariantNumeric: 'tabular-nums',
   },
 };
