@@ -7,7 +7,9 @@ export interface User {
   id:         string;
   phone:      string;
   name:       string;
+ username:   data.user.username || '',
   avatar_url: string;
+isAdmin:    data.user.isAdmin || false,
 }
 
 export function useAuth() {

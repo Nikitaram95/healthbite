@@ -34,14 +34,14 @@ export default function UploadPage() {
     if (authLoading) return;
     
     // Если нет пользователя или не админ - редирект
-    if (!user || !user.isadmin) {
+    if (!user || !user.isAdmin) {
       router.replace('/feed');
       return;
     }
   }, [user, authLoading, router]);
 
   // Пока идет проверка авторизации или пользователь не админ - показываем лоадер
-  if (authLoading || !user || !user.isadmin) {
+  if (authLoading || !user || !user.isAdmin) {
     return (
       <div style={s.loaderPage}>
         <div style={s.loaderSpinner} />
