@@ -192,8 +192,8 @@ export default function LoginClient() {
   <img
     src="https://storage.yandexcloud.net/healtbite/images/Group%20352%20(1).png"
     alt="HealthBite"
-    width={54}
-    height={54}
+    width={125}
+    height={125}
     style={{ borderRadius: 10, display: 'block', objectFit: 'contain' }}
   />
 </div>
