@@ -188,7 +188,7 @@ export default function LoginClient() {
         <div style={s.card}>
           {/* Логотип */}
 
-<div style={{ display: 'flex', alignItems: 'center', marginBottom: 36 }}>
+<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 36 }}>
   <img
     src="https://storage.yandexcloud.net/healtbite/images/Group%20352%20(1).png"
     alt="HealthBite"
