@@ -167,7 +167,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           name:      name.trim(),
-          avatarurl: localUser?.avatarurl ?? '', // ← avatarurl без подчёркивания
+          avatar_url: localUser?.avatar_url ?? '',
         }),
       });
 
@@ -216,7 +216,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           name:      localUser?.name ?? '',
-          avatarurl: publicUrl, // ← avatarurl без подчёркивания
+          avatar_url: publicUrl, // ← avatarurl без подчёркивания
         }),
       });
 
@@ -225,7 +225,7 @@ export default function ProfilePage() {
 
       // Сохраняем новый токен и обновляем UI
       if (profileData.token) saveCookie(profileData.token);
-      setLocalUser(prev => prev ? { ...prev, avatarurl: publicUrl } : prev);
+      setLocalUser(prev => prev ? { ...prev, avatar_url: publicUrl } : prev);
     } catch (err: unknown) {
       setAvatarError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally {
@@ -280,7 +280,7 @@ export default function ProfilePage() {
           {/* Аватар */}
           <div style={{ position: 'relative' }}>
             <div style={{ borderRadius: '50%', overflow: 'hidden', width: 88, height: 88, boxShadow: '0 0 0 3px rgba(0,162,255,.25), 0 0 20px rgba(0,162,255,.15)' }}>
-              <AuthorAvatar name={displayName} src={localUser.avatarurl} size={88} />
+              <AuthorAvatar name={displayName} src={localUser.avatar_url} size={88} />
             </div>
             <button
               onClick={() => avatarRef.current?.click()}
