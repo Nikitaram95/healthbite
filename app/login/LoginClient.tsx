@@ -187,20 +187,16 @@ export default function LoginClient() {
 
         <div style={s.card}>
           {/* Логотип */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-label="HealthBite">
-              <rect width="36" height="36" rx="10" fill="url(#lg1)" />
-              <defs>
-                <linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36">
-                  <stop offset="0%" stopColor="#00a2ff" />
-                  <stop offset="100%" stopColor="#00e5ff" />
-                </linearGradient>
-              </defs>
-              <path d="M18 8C13 8 9 12 9 17c0 6 9 11 9 11s9-5 9-11c0-5-4-9-9-9z" fill="#03111d" opacity=".9" />
-              <path d="M14 17h8M18 13v8" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span style={s.logoText}>HealthBite</span>
-          </div>
+<div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
+  <img
+    src="https://storage.yandexcloud.net/healtbite/images/Group%20352%20(1).png"
+    alt="HealthBite"
+    width={36}
+    height={36}
+    style={{ borderRadius: 10, display: 'block', objectFit: 'contain' }}
+  />
+  <span style={s.logoText}>HealthBite</span>
+</div>
 
           {step === 'phone' ? (
             <>
