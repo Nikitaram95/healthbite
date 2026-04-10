@@ -18,7 +18,7 @@ interface Post {
   createdat:     string;
   likes:         number;
   liked:         boolean;
-  views:         number; // 🔥
+  views:         number;
   commentsCount: number;
 }
 
@@ -30,25 +30,28 @@ interface Comment {
   createdat: string;
 }
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ??
-  'https://d5d5nab6rsitmnq0gb0o.i99u1wfk.apigw.yandexcloud.net';
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const CATEGORIES: Record<string, string> = {
+  ai:        'AI',           // ← добавлено
   food:      'Питание',
   mental:    'Ментальное',
   sport:     'Спорт',
   health:    'Здоровье',
   lifestyle: 'Образ жизни',
 };
+
 const CAT_COLORS: Record<string, string> = {
+  ai:        'rgba(122,57,187,.18)',  // ← добавлено
   food:      'rgba(255,179,71,.18)',
   mental:    'rgba(239,68,68,.18)',
   sport:     'rgba(0,229,255,.18)',
   health:    'rgba(16,185,129,.18)',
   lifestyle: 'rgba(122,57,187,.18)',
 };
+
 const CAT_TEXT: Record<string, string> = {
+  ai:        '#c79df5',              // ← добавлено
   food:      '#ffd08f',
   mental:    '#ff8e8e',
   sport:     '#7beeff',
@@ -56,9 +59,7 @@ const CAT_TEXT: Record<string, string> = {
   lifestyle: '#c79df5',
 };
 
-function getCategoryLabel(key: string) {
-  return CATEGORIES[key] ?? key;
-}
+function getCategoryLabel(key: string) { return CATEGORIES[key] ?? key; }
 
 function parseTimestamp(raw: string | number | null | undefined): number {
   if (raw === null || raw === undefined || raw === '') return 0;
@@ -74,7 +75,7 @@ function parseTimestamp(raw: string | number | null | undefined): number {
 function getRelativeTime(raw: string | number | null | undefined): string {
   const ms = parseTimestamp(raw);
   if (!ms) return '';
-  const diff    = Date.now() - ms;
+  const diff = Date.now() - ms;
   if (diff < 0) return 'только что';
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1)  return 'только что';
@@ -96,15 +97,12 @@ function getRelativeTime(raw: string | number | null | undefined): string {
 function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
   const letter = (name || '?').slice(0, 1).toUpperCase();
   return (
-    <div
-      style={{
-        width: size, height: size, borderRadius: '50%',
-        background: 'rgba(0,162,255,.15)', border: '1px solid rgba(0,162,255,.25)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
-      }}
-      aria-label={name}
-    >
+    <div aria-label={name} style={{
+      width: size, height: size, borderRadius: '50%',
+      background: 'rgba(0,162,255,.15)', border: '1px solid rgba(0,162,255,.25)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
+    }}>
       {letter}
     </div>
   );
@@ -129,9 +127,7 @@ function SkeletonPost() {
           </div>
         </div>
         <SkeletonBlock w="75%" h="1.5em" />
-        <SkeletonBlock />
-        <SkeletonBlock />
-        <SkeletonBlock w="55%" />
+        <SkeletonBlock /><SkeletonBlock /><SkeletonBlock w="55%" />
       </div>
     </div>
   );
@@ -140,13 +136,11 @@ function SkeletonPost() {
 function SkeletonComments() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {[1, 2].map((i) => (
+      {[1, 2].map(i => (
         <div key={i} style={{ display: 'flex', gap: 10 }}>
           <div className="sk" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <SkeletonBlock w="30%" />
-            <SkeletonBlock />
-            <SkeletonBlock w="70%" />
+            <SkeletonBlock w="30%" /><SkeletonBlock /><SkeletonBlock w="70%" />
           </div>
         </div>
       ))}
@@ -157,9 +151,9 @@ function SkeletonComments() {
 // ─── Основной компонент ───────────────────────────────────────────────────────
 
 export default function PostPage() {
-  const { id }   = useParams<{ id: string }>();
-  const router   = useRouter();
-  const { user } = useAuth();
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user, getToken } = useAuth();
 
   const [post,            setPost]            = useState<Post | null>(null);
   const [loadingPost,     setLoadingPost]     = useState(true);
@@ -177,17 +171,18 @@ export default function PostPage() {
     if (!id) return;
     setLoadingPost(true);
     try {
-      const qs  = user?.phone ? `?userId=${encodeURIComponent(user.phone)}` : '';
+      // user.id === phone (см. useAuth)
+      const qs  = user?.id ? `?userId=${encodeURIComponent(user.id)}` : '';
       const res = await fetch(`${API}/post/${id}${qs}`);
       if (res.status === 404) { router.push('/feed'); return; }
-      if (!res.ok) throw new Error(`loadPost ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`${res.status}`);
       setPost(await res.json());
     } catch (e) {
       console.error('loadPost:', e);
     } finally {
       setLoadingPost(false);
     }
-  }, [id, user?.phone, router]);
+  }, [id, user?.id, router]);
 
   // ─── Загрузка комментариев ──────────────────────────────────────────────
 
@@ -196,7 +191,7 @@ export default function PostPage() {
     setLoadingComments(true);
     try {
       const res  = await fetch(`${API}/post/${id}/comments`);
-      if (!res.ok) throw new Error(`loadComments ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setComments(Array.isArray(data) ? data : Array.isArray(data?.comments) ? data.comments : []);
     } catch (e) {
@@ -212,34 +207,36 @@ export default function PostPage() {
   // ─── Лайк ───────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async () => {
-    if (!post || !user?.phone || likePending) return;
+    if (!post || !user?.id || likePending) return;
     const wasLiked = post.liked;
-    setPost((p) => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
+    // Оптимистичное обновление
+    setPost(p => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
     setLikePending(true);
     try {
       const res = await fetch(`${API}/upload`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: wasLiked ? 'unlikepost' : 'likepost',
           postId: post.postid,
-          userId: user.phone,
+          userId: user.id,  // ← user.id === phone
         }),
       });
-      if (!res.ok) throw new Error(`like ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      setPost((p) => p ? {
+      setPost(p => p ? {
         ...p,
         likes: typeof data.likes === 'number' ? data.likes : p.likes,
         liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
       } : p);
     } catch (e) {
+      // Откатываем
       console.error('like error:', e);
-      setPost((p) => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
+      setPost(p => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
     } finally {
       setLikePending(false);
     }
-  }, [post, user?.phone, likePending]);
+  }, [post, user?.id, likePending]);
 
   // ─── Отправка комментария ────────────────────────────────────────────────
 
@@ -249,13 +246,17 @@ export default function PostPage() {
     setSendingComment(true);
     setCommentError('');
     try {
+      const token = getToken();
       const res = await fetch(`${API}/post/${id}/comments`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // ← токен передаём, чтобы бэкенд знал автора
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ text: commentText.trim() }),
       });
-      if (!res.ok) throw new Error(`sendComment ${res.status}: ${await res.text()}`);
-      await res.json();
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
       setCommentText('');
       await loadComments();
     } catch (e: unknown) {
@@ -263,7 +264,7 @@ export default function PostPage() {
     } finally {
       setSendingComment(false);
     }
-  }, [commentText, id, loadComments]);
+  }, [commentText, id, loadComments, getToken]);
 
   // ─── Скелетон загрузки ───────────────────────────────────────────────────
 
@@ -274,9 +275,7 @@ export default function PostPage() {
         <div style={s.gridBg} />
         <header style={s.header}>
           <div style={s.headerInner}>
-            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
-              <ArrowIcon />
-            </button>
+            <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад"><ArrowIcon /></button>
             <Link href="/feed" style={s.logo}>HealthBite</Link>
             <div style={{ width: 34 }} />
           </div>
@@ -303,6 +302,9 @@ export default function PostPage() {
   const catBg    = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
   const catTxt   = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
 
+  // displayName автора комментария — из хука
+ const commenterName = user?.name || '';
+
   // ─── Рендер ─────────────────────────────────────────────────────────────
 
   return (
@@ -312,9 +314,7 @@ export default function PostPage() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад">
-            <ArrowIcon />
-          </button>
+          <button onClick={() => router.back()} style={s.backBtn} aria-label="Назад"><ArrowIcon /></button>
           <Link href="/feed" style={s.logo}>HealthBite</Link>
           <div style={{ width: 34 }} />
         </div>
@@ -326,19 +326,13 @@ export default function PostPage() {
         <article style={{ ...s.card, marginBottom: 16 }}>
           {post.mediaurl && !imgError && (
             post.type === 'video' ? (
-              <video
-                src={post.mediaurl}
-                controls playsInline
-                style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }}
-              />
+              <video src={post.mediaurl} controls playsInline
+                style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
             ) : (
               <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-                <img
-                  src={post.mediaurl}
-                  alt={post.title}
+                <img src={post.mediaurl} alt={post.title}
                   onError={() => setImgError(true)}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 <div style={s.mediaOverlay} />
               </div>
             )
@@ -349,12 +343,8 @@ export default function PostPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <AuthorAvatar name={post.author} size={40} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '.9rem', fontWeight: 700, color: '#dceaff',
-                  marginBottom: 4, overflow: 'hidden',
-                  textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  @{post.author}
+                <div style={{ fontSize: '.9rem', fontWeight: 700, color: '#dceaff', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {post.author}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ ...s.catBadge, background: catBg, color: catTxt }}>{catLabel}</span>
@@ -368,51 +358,26 @@ export default function PostPage() {
               </div>
             </div>
 
-            <h1 style={{
-              fontFamily: 'Orbitron, sans-serif',
-              fontSize: 'clamp(1.1rem, 3vw, 1.375rem)',
-              fontWeight: 800, color: '#dceaff',
-              lineHeight: 1.3, marginBottom: 12,
-            }}>
+            <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.1rem, 3vw, 1.375rem)', fontWeight: 800, color: '#dceaff', lineHeight: 1.3, marginBottom: 12 }}>
               {post.title}
             </h1>
 
             {post.description && (
-              <p style={{
-                fontSize: '.9rem', color: '#8aa3bf', lineHeight: 1.75,
-                marginBottom: 16, whiteSpace: 'pre-wrap', maxWidth: 'none',
-              }}>
+              <p style={{ fontSize: '.9rem', color: '#8aa3bf', lineHeight: 1.75, marginBottom: 16, whiteSpace: 'pre-wrap', maxWidth: 'none' }}>
                 {post.description}
               </p>
             )}
 
-            {/* 🔥 Действия: лайк + просмотры */}
-            <div style={{
-              paddingTop: 12,
-              borderTop: '1px solid rgba(255,255,255,.06)',
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              {/* Лайк */}
-              <button
-                onClick={handleLike}
-                disabled={likePending || !user}
+            {/* Действия */}
+            <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={handleLike} disabled={likePending || !user}
                 aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
-                style={{
-                  ...s.actionBtn,
-                  ...(post.liked ? s.actionBtnLiked : {}),
-                  opacity: likePending ? 0.6 : 1,
-                  cursor: user ? 'pointer' : 'default',
-                }}
-              >
+                style={{ ...s.actionBtn, ...(post.liked ? s.actionBtnLiked : {}), opacity: likePending ? 0.6 : 1, cursor: user ? 'pointer' : 'default' }}>
                 <HeartIcon filled={post.liked} />
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
               </button>
 
-              {/* Комментарии */}
-              <a
-                href="#comments"
-                style={{ ...s.actionBtn, textDecoration: 'none' }}
-              >
+              <a href="#comments" style={{ ...s.actionBtn, textDecoration: 'none' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -421,7 +386,6 @@ export default function PostPage() {
                 </span>
               </a>
 
-              {/* 🔥 Просмотры */}
               <div style={s.viewsCount}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -437,20 +401,10 @@ export default function PostPage() {
 
         {/* Комментарии */}
         <section id="comments" style={{ ...s.card, padding: '20px 16px' }}>
-
-          <h2 style={{
-            fontFamily: 'Orbitron, sans-serif',
-            fontSize: '.9375rem', fontWeight: 700,
-            color: '#dceaff', marginBottom: 18,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
+          <h2 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '.9375rem', fontWeight: 700, color: '#dceaff', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
             Комментарии
             {!loadingComments && comments.length > 0 && (
-              <span style={{
-                fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf',
-                background: 'rgba(255,255,255,.06)',
-                padding: '1px 8px', borderRadius: 999,
-              }}>
+              <span style={{ fontSize: '.8125rem', fontWeight: 400, color: '#8aa3bf', background: 'rgba(255,255,255,.06)', padding: '1px 8px', borderRadius: 999 }}>
                 {comments.length}
               </span>
             )}
@@ -460,47 +414,28 @@ export default function PostPage() {
           {user ? (
             <form onSubmit={handleComment} style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                <AuthorAvatar name={user.name || user.phone || 'A'} size={32} />
+                <AuthorAvatar name={commenterName} size={32} />
                 <textarea
                   placeholder="Напиши комментарий..."
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  rows={2}
-                  maxLength={500}
-                  onKeyDown={(e) => {
+                  onChange={e => setCommentText(e.target.value)}
+                  rows={2} maxLength={500}
+                  onKeyDown={e => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
                       handleComment(e as unknown as React.FormEvent);
                   }}
-                  style={{
-                    flex: 1, padding: '10px 14px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(0,162,255,.18)',
-                    fontSize: '.875rem', resize: 'none',
-                    fontFamily: '"Exo 2", sans-serif',
-                    outline: 'none',
-                    background: 'rgba(255,255,255,.04)',
-                    color: '#dceaff', lineHeight: 1.5,
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'rgba(0,162,255,.45)')}
-                  onBlur={(e)  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(0,162,255,.18)', fontSize: '.875rem', resize: 'none', fontFamily: '"Exo 2", sans-serif', outline: 'none', background: 'rgba(255,255,255,.04)', color: '#dceaff', lineHeight: 1.5 }}
+                  onFocus={e => (e.target.style.borderColor = 'rgba(0,162,255,.45)')}
+                  onBlur={e  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
                 />
               </div>
               {commentError && (
-                <p style={{ fontSize: '.8125rem', color: '#ff8e8e', marginBottom: 6, paddingLeft: 42 }}>
-                  {commentError}
-                </p>
+                <p style={{ fontSize: '.8125rem', color: '#ff8e8e', marginBottom: 6, paddingLeft: 42 }}>{commentError}</p>
               )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 42 }}>
                 <span style={{ fontSize: '.75rem', color: '#3a4f6a' }}>Ctrl+Enter</span>
-                <button
-                  type="submit"
-                  disabled={sendingComment || !commentText.trim()}
-                  style={{
-                    ...s.btnPrimary,
-                    opacity: sendingComment || !commentText.trim() ? 0.45 : 1,
-                    cursor:  sendingComment || !commentText.trim() ? 'default' : 'pointer',
-                  }}
-                >
+                <button type="submit" disabled={sendingComment || !commentText.trim()}
+                  style={{ ...s.btnPrimary, opacity: sendingComment || !commentText.trim() ? 0.45 : 1, cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer' }}>
                   {sendingComment ? '...' : 'Отправить'}
                 </button>
               </div>
@@ -513,10 +448,8 @@ export default function PostPage() {
             </div>
           )}
 
-          {/* Список комментариев */}
-          {loadingComments ? (
-            <SkeletonComments />
-          ) : comments.length === 0 ? (
+          {/* Список */}
+          {loadingComments ? <SkeletonComments /> : comments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: '#8aa3bf' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
               <p style={{ fontWeight: 600, color: '#dceaff', marginBottom: 4 }}>Пока нет комментариев</p>
@@ -524,28 +457,17 @@ export default function PostPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {comments.map((c) => (
+              {comments.map(c => (
                 <div key={c.commentid} style={{ display: 'flex', gap: 10 }}>
                   <AuthorAvatar name={c.author} size={32} />
-                  <div style={{
-                    flex: 1,
-                    background: 'rgba(255,255,255,.04)',
-                    borderRadius: 12, padding: '10px 14px',
-                    border: '1px solid rgba(255,255,255,.06)',
-                  }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,.04)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>
-                        {c.author}
-                      </span>
+                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>{c.author}</span>
                       {getRelativeTime(c.createdat) && (
-                        <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>
-                          {getRelativeTime(c.createdat)}
-                        </span>
+                        <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>{getRelativeTime(c.createdat)}</span>
                       )}
                     </div>
-                    <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6 }}>
-                      {c.text}
-                    </p>
+                    <p style={{ margin: 0, fontSize: '.875rem', color: '#c8d8ee', lineHeight: 1.6 }}>{c.text}</p>
                   </div>
                 </div>
               ))}
@@ -565,7 +487,7 @@ function ArrowIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5"  y2="12"/>
+      <line x1="19" y1="12" x2="5" y2="12"/>
       <polyline points="12 19 5 12 12 5"/>
     </svg>
   );
@@ -574,8 +496,7 @@ function ArrowIcon() {
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor" strokeWidth="2">
+      fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
   );
@@ -599,88 +520,18 @@ const globalStyles = `
 `;
 
 const s: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100dvh',
-    background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)',
-    fontFamily: '"Exo 2", system-ui, sans-serif',
-    color: '#f4f8ff', position: 'relative',
-  },
-  gridBg: {
-    position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-    backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)',
-    backgroundSize: '56px 56px',
-    maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)',
-  },
-  header: {
-    background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)',
-    borderBottom: '1px solid rgba(0,162,255,.1)',
-    position: 'sticky', top: 0, zIndex: 100,
-  },
-  headerInner: {
-    maxWidth: 720, margin: '0 auto', padding: '0 16px',
-    height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  },
-  logo: {
-    fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem',
-    background: 'linear-gradient(90deg, #00a2ff, #fff)',
-    WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-    textDecoration: 'none',
-  },
-  backBtn: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 34, height: 34, borderRadius: 10,
-    background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)',
-    color: '#7ecfff', cursor: 'pointer',
-  },
-  main: {
-    maxWidth: 720, margin: '0 auto',
-    padding: '16px 16px 48px',
-    position: 'relative', zIndex: 1,
-  },
-  card: {
-    background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))',
-    border: '1px solid rgba(255,255,255,.07)',
-    borderRadius: 18, overflow: 'hidden',
-    boxShadow: '0 8px 32px rgba(0,0,0,.35)',
-  },
-  mediaOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
-    background: 'linear-gradient(transparent, rgba(9,17,29,.9))',
-    pointerEvents: 'none',
-  },
-  catBadge: {
-    display: 'inline-block', padding: '.15rem .625rem',
-    borderRadius: 999, fontSize: '.6875rem', fontWeight: 700,
-    letterSpacing: '.04em', textTransform: 'uppercase' as const,
-  },
-  actionBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 6,
-    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
-    borderRadius: 999, padding: '.35rem .75rem',
-    cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf',
-    fontFamily: '"Exo 2", sans-serif', fontWeight: 500,
-    transition: 'all .18s ease',
-  },
-  actionBtnLiked: {
-    borderColor: 'rgba(239,68,68,.4)', color: '#ff8e8e',
-    background: 'rgba(239,68,68,.1)', boxShadow: '0 0 10px rgba(239,68,68,.2)',
-  },
-  // 🔥 Просмотры
-  viewsCount: {
-    display: 'inline-flex', alignItems: 'center', gap: 5,
-    fontSize: '.8125rem', color: '#4a6a8a',
-    marginLeft: 'auto',
-    fontVariantNumeric: 'tabular-nums',
-  },
-  btnPrimary: {
-    display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: '8px 18px',
-    background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))',
-    border: '1px solid rgba(0,162,255,.35)',
-    color: '#fff', borderRadius: 999,
-    fontSize: '.875rem', fontWeight: 700,
-    fontFamily: '"Exo 2", sans-serif',
-    boxShadow: '0 0 14px rgba(0,162,255,.2)',
-    cursor: 'pointer',
-  },
+  page:        { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
+  gridBg:      { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
+  header:      { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner: { maxWidth: 720, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo:        { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', textDecoration: 'none' },
+  backBtn:     { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
+  main:        { maxWidth: 720, margin: '0 auto', padding: '16px 16px 48px', position: 'relative', zIndex: 1 },
+  card:        { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
+  mediaOverlay:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, rgba(9,17,29,.9))', pointerEvents: 'none' },
+  catBadge:    { display: 'inline-block', padding: '.15rem .625rem', borderRadius: 999, fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' as const },
+  actionBtn:   { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '.35rem .75rem', cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif', fontWeight: 500, transition: 'all .18s ease' },
+  actionBtnLiked: { borderColor: 'rgba(239,68,68,.4)', color: '#ff8e8e', background: 'rgba(239,68,68,.1)', boxShadow: '0 0 10px rgba(239,68,68,.2)' },
+  viewsCount:  { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' },
+  btnPrimary:  { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))', border: '1px solid rgba(0,162,255,.35)', color: '#fff', borderRadius: 999, fontSize: '.875rem', fontWeight: 700, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)', cursor: 'pointer' },
 };

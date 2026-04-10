@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Step = 'phone' | 'code';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
+const IS_DEV = process.env.NODE_ENV === 'development'; // ← подсказка только в dev
 
 // ─── Утилиты ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +22,8 @@ function formatPhone(raw: string): string {
 }
 
 function rawPhone(f: string): string {
-  return '+7' + f.replace(/\D/g, '').slice(1);
+  const digits = f.replace(/\D/g, '');
+  return '+7' + digits.slice(1);
 }
 
 // ─── Атомы UI ─────────────────────────────────────────────────────────────────
@@ -106,13 +109,16 @@ function PrimaryButton({
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
 export default function LoginClient() {
+  const router = useRouter();
+
   const [step,    setStep]    = useState<Step>('phone');
   const [phone,   setPhone]   = useState('');
   const [code,    setCode]    = useState('');
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
-  // ── Шаг 1: отправка кода ────────────────────────────────────────────────────
+  // ── Шаг 1: отправка кода ──────────────────────────────────────────────────
+
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -135,7 +141,8 @@ export default function LoginClient() {
     }
   }
 
-  // ── Шаг 2: проверка кода ────────────────────────────────────────────────────
+  // ── Шаг 2: проверка кода ──────────────────────────────────────────────────
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -150,7 +157,7 @@ export default function LoginClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Неверный код');
 
-      // Сохраняем токен в cookie (30 дней)
+      // Сохраняем токен (30 дней)
       document.cookie = [
         `auth-token=${encodeURIComponent(data.token)}`,
         'path=/',
@@ -158,7 +165,7 @@ export default function LoginClient() {
         'SameSite=Lax',
       ].join('; ');
 
-      window.location.href = '/feed';
+      router.push('/feed'); // ← router вместо window.location
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ошибка');
     } finally {
@@ -196,7 +203,6 @@ export default function LoginClient() {
           </div>
 
           {step === 'phone' ? (
-            /* ── Шаг «Телефон» ───────────────────────────────────────────── */
             <>
               <h1 style={s.title}>Войти</h1>
               <p style={s.subtitle}>Введите номер — пришлём SMS с кодом</p>
@@ -207,18 +213,14 @@ export default function LoginClient() {
                   <div style={{ position: 'relative' }}>
                     <span style={s.inputIcon}><PhoneIcon /></span>
                     <input
-                      id="phone"
-                      type="tel"
-                      inputMode="numeric"
+                      id="phone" type="tel" inputMode="numeric"
                       placeholder="+7 (999) 000-00-00"
                       value={phone}
-                      onChange={(e) => setPhone(formatPhone(e.target.value))}
-                      autoComplete="tel"
-                      autoFocus
-                      disabled={loading}
+                      onChange={e => setPhone(formatPhone(e.target.value))}
+                      autoComplete="tel" autoFocus disabled={loading}
                       style={s.input}
-                      onFocus={(e) => (e.target.style.borderColor = 'rgba(0,162,255,.55)')}
-                      onBlur={(e)  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
+                      onFocus={e => (e.target.style.borderColor = 'rgba(0,162,255,.55)')}
+                      onBlur={e  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
                     />
                   </div>
                 </div>
@@ -231,7 +233,6 @@ export default function LoginClient() {
               </form>
             </>
           ) : (
-            /* ── Шаг «Код» ───────────────────────────────────────────────── */
             <>
               <button onClick={goBack} style={s.backBtn}>
                 <ArrowLeftIcon /> Изменить номер
@@ -250,47 +251,34 @@ export default function LoginClient() {
                     Код из SMS
                   </label>
                   <input
-                    id="code"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="· · · ·"
+                    id="code" type="text" inputMode="numeric"
+                    maxLength={4} placeholder="· · · ·"
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    autoComplete="one-time-code"
-                    autoFocus
-                    disabled={loading}
-                    style={{
-                      ...s.input,
-                      paddingLeft: 14,
-                      textAlign: 'center',
-                      fontSize: 28,
-                      fontWeight: 700,
-                      letterSpacing: '0.55rem',
-                      height: 64,
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'rgba(0,162,255,.55)')}
-                    onBlur={(e)  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
+                    onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    autoComplete="one-time-code" autoFocus disabled={loading}
+                    style={{ ...s.input, paddingLeft: 14, textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '0.55rem', height: 64 }}
+                    onFocus={e => (e.target.style.borderColor = 'rgba(0,162,255,.55)')}
+                    onBlur={e  => (e.target.style.borderColor = 'rgba(0,162,255,.18)')}
                   />
                 </div>
 
                 {/* Индикатор заполнения */}
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
-                  {[0, 1, 2, 3].map((i) => (
+                  {[0, 1, 2, 3].map(i => (
                     <div key={i} style={{
                       width: 8, height: 8, borderRadius: '50%',
-                      background: i < code.length
-                        ? 'rgba(0,162,255,.9)'
-                        : 'rgba(0,162,255,.18)',
+                      background: i < code.length ? 'rgba(0,162,255,.9)' : 'rgba(0,162,255,.18)',
                       transition: 'background .15s ease',
                     }} />
                   ))}
                 </div>
 
-                {/* Подсказка для теста */}
-                <p style={{ fontSize: '.75rem', color: '#3a5270', textAlign: 'center', marginBottom: 16 }}>
-                  Тестовый код: <strong style={{ color: '#5a7a9a' }}>1234</strong>
-                </p>
+                {/* Подсказка только в dev-режиме */}
+   {IS_DEV && (
+  <p style={{ fontSize: '.75rem', color: '#3a5270', textAlign: 'center', marginBottom: 16 }}>
+    Код отправлен (dev: смотри логи функции в Yandex Cloud)
+  </p>
+)}
 
                 {error && <ErrorBox text={error} />}
 
@@ -306,7 +294,7 @@ export default function LoginClient() {
   );
 }
 
-// ─── Глобальные стили ─────────────────────────────────────────────────────────
+// ─── Стили ────────────────────────────────────────────────────────────────────
 
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=Exo+2:wght@400;500;600;700&display=swap');
@@ -315,124 +303,31 @@ const globalStyles = `
   body { background: #0d1623; margin: 0; }
 `;
 
-// ─── Стили ────────────────────────────────────────────────────────────────────
-
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100dvh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: [
-      'radial-gradient(circle at 28% 18%, rgba(0,162,255,.13) 0, transparent 38%)',
-      'radial-gradient(circle at 75% 78%, rgba(0,229,255,.08) 0, transparent 35%)',
-      'linear-gradient(180deg, #0a1220 0%, #0d1623 50%, #09111a 100%)',
-    ].join(', '),
-    padding: '16px',
-    fontFamily: '"Exo 2", system-ui, sans-serif',
-    position: 'relative',
+    minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: ['radial-gradient(circle at 28% 18%, rgba(0,162,255,.13) 0, transparent 38%)', 'radial-gradient(circle at 75% 78%, rgba(0,229,255,.08) 0, transparent 35%)', 'linear-gradient(180deg, #0a1220 0%, #0d1623 50%, #09111a 100%)'].join(', '),
+    padding: '16px', fontFamily: '"Exo 2", system-ui, sans-serif', position: 'relative',
   },
   gridBg: {
     position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-    backgroundImage: [
-      'linear-gradient(rgba(0,162,255,.03) 1px, transparent 1px)',
-      'linear-gradient(90deg, rgba(0,162,255,.03) 1px, transparent 1px)',
-    ].join(', '),
+    backgroundImage: ['linear-gradient(rgba(0,162,255,.03) 1px, transparent 1px)', 'linear-gradient(90deg, rgba(0,162,255,.03) 1px, transparent 1px)'].join(', '),
     backgroundSize: '56px 56px',
     maskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)',
   },
   card: {
-    position: 'relative', zIndex: 1,
-    width: '100%', maxWidth: 400,
+    position: 'relative', zIndex: 1, width: '100%', maxWidth: 400,
     background: 'linear-gradient(180deg, rgba(16,33,59,.98), rgba(12,22,40,.99))',
-    border: '1px solid rgba(0,162,255,.14)',
-    borderRadius: 22,
-    padding: '40px 32px 36px',
-    boxShadow: [
-      '0 8px 48px rgba(0,0,0,.55)',
-      '0 0 0 1px rgba(0,162,255,.05) inset',
-      '0 1px 0 rgba(255,255,255,.04) inset',
-    ].join(', '),
+    border: '1px solid rgba(0,162,255,.14)', borderRadius: 22, padding: '40px 32px 36px',
+    boxShadow: ['0 8px 48px rgba(0,0,0,.55)', '0 0 0 1px rgba(0,162,255,.05) inset', '0 1px 0 rgba(255,255,255,.04) inset'].join(', '),
   },
-  logoText: {
-    fontFamily: 'Orbitron, sans-serif',
-    fontWeight: 800,
-    fontSize: '1.125rem',
-    background: 'linear-gradient(90deg, #00a2ff, #e0f4ff)',
-    WebkitBackgroundClip: 'text',
-    backgroundClip: 'text',
-    color: 'transparent',
-  },
-  title: {
-    fontFamily: 'Orbitron, sans-serif',
-    fontSize: 'clamp(1.25rem, 3vw, 1.625rem)',
-    fontWeight: 800,
-    color: '#dceaff',
-    lineHeight: 1.2,
-    marginBottom: 8,
-    marginTop: 0,
-  },
-  subtitle: {
-    fontSize: '.9rem',
-    color: '#8aa3bf',
-    marginBottom: 28,
-    lineHeight: 1.55,
-    marginTop: 0,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 7,
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: '.875rem',
-    fontWeight: 600,
-    color: '#c8d8ee',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  labelIcon: {
-    color: '#5090c0',
-    display: 'flex',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 14,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    color: '#6a90b0',
-    pointerEvents: 'none',
-    display: 'flex',
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    padding: '0 14px 0 42px',
-    borderRadius: 12,
-    border: '1.5px solid rgba(0,162,255,.18)',
-    fontSize: '.9375rem',
-    color: '#dceaff',
-    background: 'rgba(0,162,255,.04)',
-    outline: 'none',
-    boxSizing: 'border-box',
-    fontFamily: '"Exo 2", sans-serif',
-    transition: 'border-color 160ms ease',
-  },
-  backBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    color: '#6a90b0',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '.875rem',
-    fontWeight: 500,
-    marginBottom: 20,
-    padding: 0,
-    fontFamily: '"Exo 2", sans-serif',
-    transition: 'color .15s ease',
-  },
+  logoText: { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.125rem', background: 'linear-gradient(90deg, #00a2ff, #e0f4ff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' },
+  title:    { fontFamily: 'Orbitron, sans-serif', fontSize: 'clamp(1.25rem, 3vw, 1.625rem)', fontWeight: 800, color: '#dceaff', lineHeight: 1.2, marginBottom: 8, marginTop: 0 },
+  subtitle: { fontSize: '.9rem', color: '#8aa3bf', marginBottom: 28, lineHeight: 1.55, marginTop: 0 },
+  field:    { display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 },
+  label:    { fontSize: '.875rem', fontWeight: 600, color: '#c8d8ee', display: 'flex', alignItems: 'center', gap: 6 },
+  labelIcon:{ color: '#5090c0', display: 'flex' },
+  inputIcon:{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6a90b0', pointerEvents: 'none', display: 'flex' },
+  input:    { width: '100%', height: 50, padding: '0 14px 0 42px', borderRadius: 12, border: '1.5px solid rgba(0,162,255,.18)', fontSize: '.9375rem', color: '#dceaff', background: 'rgba(0,162,255,.04)', outline: 'none', boxSizing: 'border-box', fontFamily: '"Exo 2", sans-serif', transition: 'border-color 160ms ease' },
+  backBtn:  { display: 'flex', alignItems: 'center', gap: 6, color: '#6a90b0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.875rem', fontWeight: 500, marginBottom: 20, padding: 0, fontFamily: '"Exo 2", sans-serif', transition: 'color .15s ease' },
 };
