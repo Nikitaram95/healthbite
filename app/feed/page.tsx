@@ -121,17 +121,17 @@ async function sendView(postid: string): Promise<void> {
   }
 }
 
-// ─── Аватар пользователя ─────────────────────────────────────────────────────
+// ─── Аватар ───────────────────────────────────────────────────────────────────
 
 function UserAvatar({ user, size = 36 }: { user: any; size?: number }) {
   const letter    = (user.name || user.phone || '?').slice(0, 1).toUpperCase();
-  const hasAvatar = user.avatar_url && user.avatar_url !== '';
+  const hasAvatar = user.avatarurl && user.avatarurl !== '';
 
   return (
-    <div style={{ position: 'relative', width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, cursor: 'pointer' }}>
+    <div style={{ position: 'relative', width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
       {hasAvatar && (
         <img
-          src={user.avatar_url}
+          src={user.avatarurl}
           alt={user.name || user.phone}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={(e) => {
@@ -195,24 +195,22 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
   const catLabel = getCategoryLabel(post.categoryid);
   const cat      = getCatStyle(post.categoryid);
 
-useEffect(() => {
-  const el = cardRef.current;
-  if (!el) return;
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting && !viewedRef.current) {
-        viewedRef.current = true;
-        onView(post.postid);
-        observer.disconnect();
-      }
-    },
-    { threshold: 0.1 }
-  );
-
-  observer.observe(el);
-  return () => observer.disconnect();
-}, [post.postid, onView]);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !viewedRef.current) {
+          viewedRef.current = true;
+          onView(post.postid);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [post.postid, onView]);
 
   function handleLike(e: React.MouseEvent) {
     e.stopPropagation();
@@ -273,7 +271,6 @@ useEffect(() => {
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
         <div style={s.cardFooter}>
-          {/* Лайк */}
           <button
             className={popping ? 'like-pop' : ''}
             style={{ ...s.likeBtn, ...(post.liked ? s.likeBtnActive : {}) }}
@@ -286,7 +283,6 @@ useEffect(() => {
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
           </button>
 
-          {/* Комментарии */}
           <button onClick={handleComments} aria-label="Комментарии" style={s.commentBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -296,7 +292,6 @@ useEffect(() => {
             </span>
           </button>
 
-          {/* Просмотры */}
           <div style={s.viewsCount}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -328,8 +323,6 @@ export default function FeedScreen() {
 
   const viewedPostsRef = useRef<Set<string>>(new Set());
 
-  // ─── Загрузка ─────────────────────────────────────────────────────────────
-
   const loadPosts = useCallback(async (category: string) => {
     setLoading(true);
     setError(null);
@@ -346,92 +339,45 @@ export default function FeedScreen() {
 
   useEffect(() => { loadPosts(activeCategory); }, [activeCategory, loadPosts]);
 
-  // ─── Просмотр ─────────────────────────────────────────────────────────────
-
   const handleView = useCallback(async (postid: string) => {
     if (viewedPostsRef.current.has(postid)) return;
     viewedPostsRef.current.add(postid);
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.postid === postid ? { ...p, views: p.views + 1 } : p
-      )
-    );
-
+    setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, views: p.views + 1 } : p));
     await sendView(postid);
   }, []);
 
-  // ─── Лайк ─────────────────────────────────────────────────────────────────
-
   const handleLike = useCallback(async (postid: string, currentLiked: boolean) => {
     if (!userId) return;
-
     let locked = false;
     setLikePending((prev) => {
       if (prev.has(postid)) return prev;
       locked = true;
-      const next = new Set(prev);
-      next.add(postid);
-      return next;
+      const next = new Set(prev); next.add(postid); return next;
     });
     if (!locked) return;
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.postid === postid
-          ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
-    );
-
+    setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 } : p));
     try {
       const result = await toggleLike(postid, userId, currentLiked);
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.postid === postid
-            ? {
-                ...p,
-                likes: typeof result.likes === 'number' ? result.likes : p.likes,
-                liked: typeof result.liked === 'boolean' ? result.liked : p.liked,
-              }
-            : p
-        )
-      );
+      setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, likes: typeof result.likes === 'number' ? result.likes : p.likes, liked: typeof result.liked === 'boolean' ? result.liked : p.liked } : p));
     } catch {
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.postid === postid
-            ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
-            : p
-        )
-      );
+      setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 } : p));
     } finally {
-      setLikePending((prev) => {
-        const next = new Set(prev);
-        next.delete(postid);
-        return next;
-      });
+      setLikePending((prev) => { const next = new Set(prev); next.delete(postid); return next; });
     }
   }, [userId]);
-
-  // ─── Навигация ────────────────────────────────────────────────────────────
 
   function handleNavigate(postid: string) { router.push(`/post/${postid}`); }
   function handleComments(postid: string) { router.push(`/post/${postid}#comments`); }
   function handleProfile()               { if (user) router.push('/profile'); }
 
-  // ─── Фильтрация ───────────────────────────────────────────────────────────
-
   const q = searchQuery.toLowerCase();
   const filteredPosts = searchQuery.trim()
     ? posts.filter((p) =>
-        (p.title       || '').toLowerCase().includes(q) ||
+        (p.title || '').toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q) ||
-        (p.author      || '').toLowerCase().includes(q)
+        (p.author || '').toLowerCase().includes(q)
       )
     : posts;
-
-  // ─── Рендер ───────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -439,22 +385,36 @@ export default function FeedScreen() {
       <div style={s.page}>
         <div style={s.gridBg} />
 
+        {/* ── HEADER ── */}
         <header style={s.header}>
-          <div style={s.headerInner}>
+
+          {/* Верхняя строка: [пусто] [логотип по центру] [профиль] */}
+          <div style={s.headerTop}>
+
+            {/* Левая пустышка для баланса */}
+            <div style={{ width: 44, flexShrink: 0 }} />
+
+            {/* Центр — логотип */}
+            <span style={s.logoText}>HealthBite</span>
+
+            {/* Правый блок */}
             {user ? (
               <button onClick={handleProfile} style={s.profileBtn} aria-label="Профиль">
-                <UserAvatar user={user} size={40} />
+                <UserAvatar user={user} size={32} />
                 <div style={s.profileInfo}>
                   <div style={s.profileName}>
-                    {user.name || user.phone?.slice(-5) || 'Пользователь'}
+                    {user.name || ('·····' + user.phone?.slice(-4)) || 'Профиль'}
                   </div>
-                  <div style={s.profileStatus}>Мой профиль</div>
+                  <div style={s.profileHint}>профиль →</div>
                 </div>
               </button>
             ) : (
               <Link href="/login" style={s.loginLink}>Войти</Link>
             )}
+          </div>
 
+          {/* Поиск */}
+          <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 16px 10px' }}>
             <div style={s.searchWrap}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8aa3bf" strokeWidth="2" style={{ flexShrink: 0 }}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -476,6 +436,7 @@ export default function FeedScreen() {
             </div>
           </div>
 
+          {/* Категории */}
           <div style={s.catsWrap}>
             <div style={s.catsInner}>
               {CATEGORIES.map(({ key, label }) => {
@@ -496,6 +457,7 @@ export default function FeedScreen() {
           </div>
         </header>
 
+        {/* ── MAIN ── */}
         <main style={s.main}>
           {loading && (
             <div style={s.grid}>
@@ -584,28 +546,48 @@ const s: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid rgba(0,162,255,.1)',
     position: 'sticky', top: 0, zIndex: 100,
   },
-  headerInner: {
-    maxWidth: 700, margin: '0 auto', padding: '12px 16px 0',
-    display: 'flex', flexDirection: 'column', gap: 12,
+  headerTop: {
+    maxWidth: 700, margin: '0 auto',
+    padding: '12px 16px 10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  logoText: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontWeight: 800,
+    fontSize: '1.125rem',
+    background: 'linear-gradient(90deg, #00a2ff, #e0f4ff)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    color: 'transparent',
+    letterSpacing: '.04em',
+    flexShrink: 0,
   },
   profileBtn: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    background: 'none', border: 'none', cursor: 'pointer',
-    padding: '8px 0', width: '100%',
-  },
-  profileInfo: { flex: 1, minWidth: 0 },
-  profileName: {
-    fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  },
-  profileStatus: { fontSize: '.75rem', color: '#8aa3bf', marginTop: 2 },
-  loginLink: {
     display: 'flex', alignItems: 'center', gap: 8,
-    padding: '12px 16px', background: 'rgba(0,162,255,.1)',
-    border: '1px solid rgba(0,162,255,.25)',
-    borderRadius: 12, color: '#7ecfff',
-    textDecoration: 'none', fontWeight: 600, fontSize: '.875rem',
+    background: 'rgba(0,162,255,.07)',
+    border: '1px solid rgba(0,162,255,.18)',
+    borderRadius: 999, padding: '5px 10px 5px 5px',
     cursor: 'pointer', transition: 'all .18s ease',
+    flexShrink: 0,
+  },
+  profileInfo: { textAlign: 'left' },
+  profileName: {
+    fontSize: '.75rem', fontWeight: 700, color: '#dceaff',
+    maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  profileHint: { fontSize: '.65rem', color: '#5090b0' },
+  loginLink: {
+    padding: '7px 14px',
+    background: 'rgba(0,162,255,.1)',
+    border: '1px solid rgba(0,162,255,.25)',
+    borderRadius: 999, color: '#7ecfff',
+    textDecoration: 'none', fontWeight: 600,
+    fontSize: '.8125rem', cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   searchWrap: {
     display: 'flex', alignItems: 'center', gap: 8,
@@ -735,8 +717,7 @@ const s: Record<string, React.CSSProperties> = {
   viewsCount: {
     display: 'flex', alignItems: 'center', gap: '.3rem',
     fontSize: '.8125rem', color: '#4a6a8a',
-    marginLeft: 'auto',
-    padding: '.3rem .5rem',
+    marginLeft: 'auto', padding: '.3rem .5rem',
     fontVariantNumeric: 'tabular-nums',
   },
 };
