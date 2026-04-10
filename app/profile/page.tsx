@@ -69,7 +69,7 @@ function SkeletonProfile() {
   );
 }
 
-// ─── Вспомогательные компоненты ───────────────────────────────────────────────
+// ─── Иконки ───────────────────────────────────────────────────────────────────
 
 function Spinner({ size = 18 }: { size?: number }) {
   return (
@@ -132,6 +132,15 @@ function XIcon() {
   );
 }
 
+function ShieldIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -139,21 +148,20 @@ export default function ProfilePage() {
   const { user, loading, logout, getToken } = useAuth();
   const avatarRef = useRef<HTMLInputElement>(null);
 
-  const [editMode, setEditMode]     = useState(false);
-  const [name, setName]             = useState('');
-  const [saving, setSaving]         = useState(false);
-  const [saveError, setSaveError]   = useState('');
+  const [editMode, setEditMode]       = useState(false);
+  const [name, setName]               = useState('');
+  const [saving, setSaving]           = useState(false);
+  const [saveError, setSaveError]     = useState('');
   const [uploadingAv, setUploadingAv] = useState(false);
   const [avatarError, setAvatarError] = useState('');
 
-  // localUser — локальная копия для мгновенного обновления UI без reload
   const [localUser, setLocalUser] = useState(user);
 
   useEffect(() => { setLocalUser(user); }, [user]);
   useEffect(() => { if (!loading && !user) router.push('/login'); }, [loading, user, router]);
   useEffect(() => { if (user) setName(user.name || ''); }, [user]);
 
-  // ─── Сохранить имя ────────────────────────────────────────────────────────
+  // ─── Сохранить имя ──────────────────────────────────────────────────────
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -167,17 +175,14 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           name:      name.trim(),
-          avatar_url: localUser?.avatar_url ?? '',
+          avatar_url: localUser?.avatarurl ?? '',
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
 
-      // Бэкенд возвращает новый токен — сохраняем его
       if (data.token) saveCookie(data.token);
-
-      // Обновляем локальный UI без reload
       setLocalUser(prev => prev ? { ...prev, name: name.trim() } : prev);
       setEditMode(false);
     } catch (e: unknown) {
@@ -216,16 +221,15 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           name:      localUser?.name ?? '',
-          avatar_url: publicUrl, // ← avatarurl без подчёркивания
+          avatar_url: publicUrl,
         }),
       });
 
       const profileData = await profileRes.json();
       if (!profileRes.ok) throw new Error('Ошибка обновления профиля');
 
-      // Сохраняем новый токен и обновляем UI
       if (profileData.token) saveCookie(profileData.token);
-      setLocalUser(prev => prev ? { ...prev, avatar_url: publicUrl } : prev);
+      setLocalUser(prev => prev ? { ...prev, avatarurl: publicUrl } : prev);
     } catch (err: unknown) {
       setAvatarError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally {
@@ -243,9 +247,9 @@ export default function ProfilePage() {
         <div style={s.gridBg} />
         <header style={s.header}>
           <div style={s.headerInner}>
-            <div style={{ width: 34 }} />
-            <span style={s.logo}>HealthBite</span>
-            <div style={{ width: 34 }} />
+            <div style={{ width: 80 }} />
+            <span style={s.logo}>Профиль</span>
+            <div style={{ width: 80 }} />
           </div>
         </header>
         <main style={s.main}><SkeletonProfile /></main>
@@ -264,10 +268,15 @@ export default function ProfilePage() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
+          {/* Левая кнопка — фиксированная ширина совпадает с правой */}
           <button onClick={() => router.push('/feed')} style={s.backBtn} aria-label="В ленту">
             <ArrowIcon />
           </button>
+
+          {/* Заголовок строго по центру через абсолютное позиционирование */}
           <span style={s.logo}>Профиль</span>
+
+          {/* Правая кнопка */}
           <button onClick={() => { logout(); router.push('/'); }} style={s.logoutBtn} aria-label="Выйти">
             <LogOutIcon /> Выйти
           </button>
@@ -280,7 +289,7 @@ export default function ProfilePage() {
           {/* Аватар */}
           <div style={{ position: 'relative' }}>
             <div style={{ borderRadius: '50%', overflow: 'hidden', width: 88, height: 88, boxShadow: '0 0 0 3px rgba(0,162,255,.25), 0 0 20px rgba(0,162,255,.15)' }}>
-              <AuthorAvatar name={displayName} src={localUser.avatar_url} size={88} />
+              <AuthorAvatar name={displayName} src={localUser.avatarurl} size={88} />
             </div>
             <button
               onClick={() => avatarRef.current?.click()}
@@ -316,9 +325,23 @@ export default function ProfilePage() {
               {localUser.phone && (
                 <p style={{ fontSize: '.875rem', color: '#8aa3bf' }}>{localUser.phone}</p>
               )}
-              <button onClick={() => setEditMode(true)} style={s.editBtn}>
-                Редактировать имя
-              </button>
+
+              {/* Кнопки действий */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                <button onClick={() => setEditMode(true)} style={s.editBtn}>
+                  Редактировать имя
+                </button>
+
+                {/* ← Кнопка Админ-панели — только для isAdmin */}
+                {localUser.isAdmin && (
+                  <button
+                    onClick={() => router.push('/upload')}
+                    style={s.adminBtn}
+                  >
+                    <ShieldIcon /> Админ-панель
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSaveName} style={{ width: '100%', maxWidth: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -375,16 +398,20 @@ const globalStyles = `
 // ─── Стили ────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
-  gridBg:     { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
-  header:     { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner:{ maxWidth: 520, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo:       { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' },
-  backBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
-  logoutBtn:  { display: 'flex', alignItems: 'center', gap: 6, color: '#ff8e8e', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.8125rem', fontWeight: 600, fontFamily: '"Exo 2", sans-serif' },
-  main:       { maxWidth: 520, margin: '0 auto', padding: '24px 16px 48px', position: 'relative', zIndex: 1 },
-  card:       { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
-  editBtn:    { marginTop: 8, padding: '9px 22px', borderRadius: 999, border: '1px solid rgba(0,162,255,.25)', background: 'rgba(0,162,255,.06)', color: '#7ecfff', fontSize: '.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: '"Exo 2", sans-serif', transition: 'all .18s ease' },
-  cancelBtn:  { height: 42, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#8aa3bf', fontSize: '.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: '"Exo 2", sans-serif' },
-  btnPrimary: { height: 42, borderRadius: 999, border: '1px solid rgba(0,162,255,.35)', background: 'linear-gradient(180deg, rgba(0,162,255,.25), rgba(0,162,255,.12))', color: '#fff', fontSize: '.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)' },
+  page:        { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
+  gridBg:      { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
+  header:      { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
+  // position: relative нужен чтобы абсолютный лого работал
+  headerInner: { maxWidth: 520, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' },
+  // Абсолютный центр — не зависит от ширины левой/правой кнопок
+  logo:        { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', position: 'absolute', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' },
+  backBtn:     { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
+  logoutBtn:   { display: 'flex', alignItems: 'center', gap: 6, color: '#ff8e8e', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.8125rem', fontWeight: 600, fontFamily: '"Exo 2", sans-serif' },
+  main:        { maxWidth: 520, margin: '0 auto', padding: '24px 16px 48px', position: 'relative', zIndex: 1 },
+  card:        { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
+  editBtn:     { padding: '9px 22px', borderRadius: 999, border: '1px solid rgba(0,162,255,.25)', background: 'rgba(0,162,255,.06)', color: '#7ecfff', fontSize: '.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: '"Exo 2", sans-serif', transition: 'all .18s ease' },
+  // Кнопка админа — золотистый акцент чтобы визуально отличалась
+  adminBtn:    { padding: '9px 22px', borderRadius: 999, border: '1px solid rgba(255,180,0,.35)', background: 'rgba(255,180,0,.08)', color: '#ffd166', fontSize: '.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: '"Exo 2", sans-serif', display: 'flex', alignItems: 'center', gap: 7, transition: 'all .18s ease' },
+  cancelBtn:   { height: 42, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#8aa3bf', fontSize: '.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: '"Exo 2", sans-serif' },
+  btnPrimary:  { height: 42, borderRadius: 999, border: '1px solid rgba(0,162,255,.35)', background: 'linear-gradient(180deg, rgba(0,162,255,.25), rgba(0,162,255,.12))', color: '#fff', fontSize: '.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)' },
 };
