@@ -243,7 +243,7 @@ export default function LandingPage() {
         .plan-features li::before{content:"✓";color:var(--neon2);font-weight:800;flex:0 0 auto}
         .plan-features li.spacer{visibility:hidden;pointer-events:none}
         .plan-features li.spacer::before{content:"✓"}
-        .plan-cta { margin-top: auto; padding-top: 20px; }
+        .plan-cta { margin-top: auto; padding-top: 5px; }
         .plan-btn{width:100%;justify-content:center}
         .plan-note{text-align:center;font-size:12px;color:rgba(255,255,255,.38);margin-top:10px}
         .fill-neon{background:linear-gradient(90deg,#00a2ff,#36d5ff);box-shadow:0 0 12px rgba(0,162,255,.45)}
