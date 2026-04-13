@@ -186,8 +186,9 @@ interface PostCardProps {
 }
 
 function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: PostCardProps) {
-  const [popping,  setPopping]  = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [popping,    setPopping]    = useState(false);
+  const [imgError,   setImgError]   = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const cardRef   = useRef<HTMLElement>(null);
   const viewedRef = useRef(false);
 
@@ -227,8 +228,48 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
 
   return (
     <article ref={cardRef} style={{ ...s.card, cursor: 'pointer' }} onClick={() => onNavigate(post.postid)}>
+      {lightboxOpen && post.mediaurl && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,.93)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <img
+            src={post.mediaurl}
+            alt={post.title}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(960px, 95vw)',
+              maxHeight: '90dvh',
+              borderRadius: 14,
+              objectFit: 'contain',
+              boxShadow: '0 0 80px rgba(0,0,0,.8)',
+              display: 'block',
+            }}
+          />
+          <div style={{
+            position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+            fontSize: 12, color: 'rgba(255,255,255,.28)', pointerEvents: 'none',
+          }}>
+            тап на фон — закрыть
+          </div>
+        </div>
+      )}
+
       {post.mediaurl && !imgError && (
-        <div style={s.mediaWrap}>
+        <div
+          style={{ ...s.mediaWrap, cursor: post.type !== 'video' ? 'zoom-in' : 'default' }}
+          onClick={(e) => {
+            if (post.type !== 'video') {
+              e.stopPropagation();
+              setLightboxOpen(true);
+            }
+          }}
+        >
           {post.type === 'video' ? (
             <video
               src={post.mediaurl}

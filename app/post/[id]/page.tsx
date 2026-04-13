@@ -148,11 +148,11 @@ function SkeletonComments() {
   );
 }
 
-// ─── Лайтбокс ─────────────────────────────────────────────────────────────────
+// ─── Лайтбокс (только для изображений) ───────────────────────────────────────
 
-function MediaLightbox({
-  src, type, alt, onClose,
-}: { src: string; type: string; alt: string; onClose: () => void }) {
+function ImageLightbox({
+  src, alt, onClose,
+}: { src: string; alt: string; onClose: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -179,7 +179,6 @@ function MediaLightbox({
         @keyframes lbZoom   { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
       `}</style>
 
-      {/* Кнопка закрытия */}
       <button
         onClick={onClose}
         aria-label="Закрыть"
@@ -195,7 +194,6 @@ function MediaLightbox({
         onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,.1)')}
       >×</button>
 
-      {/* Подпись Escape */}
       <div style={{
         position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
         fontSize: 12, color: 'rgba(255,255,255,.28)', letterSpacing: '.04em',
@@ -204,40 +202,22 @@ function MediaLightbox({
         ESC или тап на фон — закрыть
       </div>
 
-      {/* Контент */}
       <div
         onClick={e => e.stopPropagation()}
         style={{ animation: 'lbZoom .2s ease', maxWidth: '100%', maxHeight: '100%', display: 'flex' }}
       >
-        {type === 'video' ? (
-          <video
-            src={src}
-            controls
-            autoPlay
-            playsInline
-            style={{
-              display: 'block',
-              maxWidth: 'min(960px, 95vw)',
-              maxHeight: '90dvh',
-              borderRadius: 14,
-              background: '#000',
-              boxShadow: '0 0 80px rgba(0,0,0,.8)',
-            }}
-          />
-        ) : (
-          <img
-            src={src}
-            alt={alt}
-            style={{
-              display: 'block',
-              maxWidth: 'min(960px, 95vw)',
-              maxHeight: '90dvh',
-              borderRadius: 14,
-              objectFit: 'contain',
-              boxShadow: '0 0 80px rgba(0,0,0,.8)',
-            }}
-          />
-        )}
+        <img
+          src={src}
+          alt={alt}
+          style={{
+            display: 'block',
+            maxWidth: 'min(960px, 95vw)',
+            maxHeight: '90dvh',
+            borderRadius: 14,
+            objectFit: 'contain',
+            boxShadow: '0 0 80px rgba(0,0,0,.8)',
+          }}
+        />
       </div>
     </div>
   );
@@ -259,7 +239,7 @@ export default function PostPage() {
   const [sendingComment,  setSendingComment]  = useState(false);
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
-  const [mediaOpen,       setMediaOpen]       = useState(false);
+  const [imgOpen,         setImgOpen]         = useState(false);
 
   // ─── Загрузка поста ────────────────────────────────────────────────────
 
@@ -402,13 +382,12 @@ export default function PostPage() {
       <style>{globalStyles}</style>
       <div style={s.gridBg} />
 
-      {/* Лайтбокс */}
-      {mediaOpen && post.mediaurl && (
-        <MediaLightbox
+      {/* Лайтбокс только для картинок */}
+      {imgOpen && post.mediaurl && post.type !== 'video' && (
+        <ImageLightbox
           src={post.mediaurl}
-          type={post.type}
           alt={post.title}
-          onClose={() => setMediaOpen(false)}
+          onClose={() => setImgOpen(false)}
         />
       )}
 
@@ -428,48 +407,28 @@ export default function PostPage() {
           {/* Медиа */}
           {post.mediaurl && !imgError && (
             post.type === 'video' ? (
-              <div
-                style={{ position: 'relative', cursor: 'pointer' }}
-                onClick={() => setMediaOpen(true)}
-              >
+              // ── Видео: нативный плеер прямо в карточке (как в ленте) ──
+              <div style={{ position: 'relative', background: '#000' }}>
                 <video
                   src={post.mediaurl}
+                  controls
                   playsInline
                   muted
-                  style={{ width: '100%', display: 'block', maxHeight: 300, objectFit: 'cover', background: '#000' }}
+                  style={{
+                    width: '100%',
+                    display: 'block',
+                    maxHeight: 440,
+                    objectFit: 'cover',
+                    background: '#000',
+                  }}
                 />
-                {/* Play-оверлей */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,.32)',
-                  transition: 'background .18s',
-                }}>
-                  <div style={{
-                    width: 60, height: 60, borderRadius: '50%',
-                    background: 'rgba(0,162,255,.22)',
-                    border: '2px solid rgba(0,162,255,.55)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 0 24px rgba(0,162,255,.35)',
-                  }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#00e5ff">
-                      <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                  </div>
-                </div>
-                {/* Подпись */}
-                <div style={{
-                  position: 'absolute', bottom: 10, right: 12,
-                  fontSize: 11, color: 'rgba(255,255,255,.5)',
-                  background: 'rgba(0,0,0,.4)', borderRadius: 6, padding: '3px 8px',
-                }}>
-                  нажми для просмотра
-                </div>
+                <div style={s.mediaOverlay} />
               </div>
             ) : (
+              // ── Картинка: клик открывает лайтбокс ──
               <div
                 style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', cursor: 'zoom-in' }}
-                onClick={() => setMediaOpen(true)}
+                onClick={() => setImgOpen(true)}
               >
                 <img
                   src={post.mediaurl}
@@ -480,7 +439,6 @@ export default function PostPage() {
                   onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
                 />
                 <div style={s.mediaOverlay} />
-                {/* Иконка лупы */}
                 <div style={{
                   position: 'absolute', bottom: 12, right: 12,
                   background: 'rgba(0,0,0,.48)', borderRadius: 8, padding: '5px 8px',
