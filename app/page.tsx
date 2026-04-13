@@ -111,11 +111,20 @@ export default function LandingPage() {
         .container{width:min(1200px,calc(100% - 40px));margin:0 auto}
         .section{padding:55px 0;position:relative}
         .grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(0,162,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,162,255,.04) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(180deg,transparent,black 15%,black 80%,transparent);pointer-events:none;z-index:0}
-        .label{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;border:1px solid rgba(0,162,255,.24);background:rgba(0,162,255,.08);color:var(--neon2);font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;font-family:'Orbitron',sans-serif}
+
+        .label{
+          display:inline-flex;align-items:center;gap:10px;padding:8px 16px;
+          border-radius:999px;border:1px solid rgba(0,162,255,.24);
+          background:rgba(0,162,255,.08);color:var(--neon2);
+          font-size:11px;font-weight:700;letter-spacing:1.8px;
+          text-transform:uppercase;font-family:'Orbitron',sans-serif
+        }
         .label:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--neon);box-shadow:0 0 14px var(--neon)}
+
         .title{font-family:'Orbitron',sans-serif;font-size:clamp(32px,5vw,66px);line-height:1.02;font-weight:800;letter-spacing:-1px;margin:20px 0 18px}
         .title .grad{background:linear-gradient(90deg,#fff,var(--neon),var(--neon2));-webkit-background-clip:text;background-clip:text;color:transparent}
         .desc{font-size:18px;line-height:1.75;color:var(--muted);max-width:760px}
+
         nav{position:fixed;top:0;left:0;right:0;z-index:1000;backdrop-filter:blur(18px);background:rgba(9,17,29,.74);border-bottom:1px solid rgba(0,162,255,.12)}
         .nav-wrap{height:76px;display:flex;align-items:center;justify-content:space-between}
         .brand{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:800;background:linear-gradient(90deg,var(--neon),#fff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -123,10 +132,12 @@ export default function LandingPage() {
         .nav-links a:hover{color:var(--text)}
         .nav-cta{padding:12px 18px;border-radius:12px;border:1px solid rgba(0,162,255,.3);background:linear-gradient(180deg,rgba(0,162,255,.18),rgba(0,162,255,.08));color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.2s ease}
         .nav-cta:hover{background:linear-gradient(180deg,rgba(0,162,255,.28),rgba(0,162,255,.15))}
+
         .hero{padding:140px 0 90px;position:relative}
         .hero-wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;position:relative;z-index:2}
         .hero p strong{color:#fff}
         .hero-actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:34px}
+
         .glow-btn,.ghost-btn{min-height:58px;padding:0 28px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;gap:12px;font-weight:800;font-size:15px;transition:.25s ease;position:relative;overflow:hidden}
         .glow-btn{color:#03111d;border:1px solid rgba(255,255,255,.3);background:linear-gradient(135deg,var(--neon2),var(--neon) 50%,#7ee6ff);box-shadow:0 0 18px rgba(0,162,255,.45),0 0 40px rgba(0,162,255,.22),inset 0 1px 0 rgba(255,255,255,.5)}
         .glow-btn:before{content:"";position:absolute;inset:-2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-130%);animation:shine 3.2s linear infinite}
@@ -134,10 +145,12 @@ export default function LandingPage() {
         .ghost-btn{color:#d9e9ff;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
         .ghost-btn:hover{border-color:rgba(0,162,255,.3);background:rgba(0,162,255,.07)}
         @keyframes shine{100%{transform:translateX(130%)}}
+
         .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:34px}
         .stat{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:18px 18px 16px}
         .stat-num{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:800;color:var(--neon2)}
         .stat-text{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}
+
         .showcase{position:relative;display:flex;flex-direction:column;align-items:center}
         .orb{position:absolute;border-radius:50%;filter:blur(18px);opacity:.55;pointer-events:none}
         .orb.one{width:220px;height:220px;background:rgba(0,162,255,.22);top:40px;left:-30px}
@@ -159,6 +172,7 @@ export default function LandingPage() {
         .screen-chip{padding:10px 18px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:13px;color:var(--muted);font-weight:700;cursor:pointer;transition:.2s ease}
         .screen-chip:hover{color:#fff;border-color:rgba(0,162,255,.2)}
         .screen-chip.active{color:#fff;border-color:rgba(0,162,255,.3);background:rgba(0,162,255,.12);box-shadow:0 0 18px rgba(0,162,255,.14) inset}
+
         .cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px}
         .info-card{padding:28px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadow)}
         .info-card .ic{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;font-size:28px;margin-bottom:20px}
@@ -168,6 +182,7 @@ export default function LandingPage() {
         .ic.cyan{background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.24)}
         .ic.green{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.24)}
         .ic.orange{background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.24)}
+
         .timeline{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:start;margin-top:56px}
         .steps{display:flex;flex-direction:column;gap:16px}
         .step{display:flex;gap:16px;padding:18px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
@@ -183,22 +198,32 @@ export default function LandingPage() {
         .metric .mbar{height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
         .metric .mbar span{display:block;height:100%;border-radius:999px}
         .side-note{margin-top:18px;padding:16px;border-radius:16px;background:rgba(0,162,255,.06);border:1px solid rgba(0,162,255,.12);color:var(--muted);font-size:13px;line-height:1.6}
+
         .feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:48px}
         .feature{padding:22px;border-radius:20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
         .feature h4{font-size:18px;margin-bottom:10px}
         .feature p{font-size:15px;line-height:1.7;color:var(--muted)}
-        .ftag,.feature-tag{display:inline-block;margin-bottom:14px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+        .feature-tag{display:inline-block;margin-bottom:14px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
         .t-blue{background:rgba(0,162,255,.1);color:#7fd4ff;border:1px solid rgba(0,162,255,.18)}
         .t-green{background:rgba(16,185,129,.1);color:#7be7c5;border:1px solid rgba(16,185,129,.18)}
         .t-cyan{background:rgba(0,229,255,.1);color:#7beeff;border:1px solid rgba(0,229,255,.18)}
         .t-orange{background:rgba(255,179,71,.1);color:#ffd08f;border:1px solid rgba(255,179,71,.18)}
 
-        /* PRICING */
+        /* ── PRICING ── */
         .pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px;align-items:start}
-        .plan{padding:28px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadow);position:relative;display:flex;flex-direction:column}
+        .plan{
+          padding:28px;border-radius:24px;
+          background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+          border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadow);
+          position:relative;display:flex;flex-direction:column
+        }
         .plan.pop{border-color:rgba(16,185,129,.28);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 50px rgba(16,185,129,.12)}
         .plan.best{border-color:rgba(255,204,0,.28);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 50px rgba(255,204,0,.1)}
-        .badge{position:absolute;top:18px;right:18px;padding:8px 12px;border-radius:999px;font-size:10px;font-weight:800;font-family:'Orbitron',sans-serif;letter-spacing:.5px}
+        .badge{
+          position:absolute;top:18px;right:18px;padding:7px 11px;
+          border-radius:999px;font-size:10px;font-weight:800;
+          font-family:'Orbitron',sans-serif;letter-spacing:.4px
+        }
         .badge.blue{background:rgba(0,162,255,.14);border:1px solid rgba(0,162,255,.28);color:#7fd4ff}
         .badge.green{background:rgba(16,185,129,.14);border:1px solid rgba(16,185,129,.22);color:#75ebc7}
         .badge.yellow{background:rgba(255,204,0,.14);border:1px solid rgba(255,204,0,.22);color:#ffdc70}
@@ -207,22 +232,25 @@ export default function LandingPage() {
         .price{font-family:'Orbitron',sans-serif;font-size:42px;line-height:1;font-weight:800;margin-bottom:8px}
         .price small{font-size:18px;color:#bfd4eb}
         .plan .per{font-size:13px;color:var(--muted);margin-bottom:18px}
-        .plan-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:0;flex:1}
-        .plan-features li{font-size:14px;color:#dbe8fa;display:flex;gap:10px;align-items:flex-start;line-height:1.55}
+        .plan-features{
+          list-style:none;display:flex;flex-direction:column;
+          gap:10px;flex:1;margin-bottom:0
+        }
+        .plan-features li{
+          font-size:14px;color:#dbe8fa;
+          display:flex;gap:10px;align-items:flex-start;line-height:1.55
+        }
         .plan-features li::before{content:"✓";color:var(--neon2);font-weight:800;flex:0 0 auto}
-        .plan-features li.cross{color:rgba(255,255,255,.25)}
-        .plan-features li.cross::before{content:"✗";color:rgba(255,255,255,.2)}
-        .plan-features li.spacer{visibility:hidden;min-height:24px}
+        .plan-features li.spacer{visibility:hidden;pointer-events:none}
         .plan-features li.spacer::before{content:"✓"}
         .plan-cta{margin-top:24px}
-        .plan .plan-btn{width:100%;justify-content:center}
+        .plan-btn{width:100%;justify-content:center}
         .plan-note{text-align:center;font-size:12px;color:rgba(255,255,255,.38);margin-top:10px}
         .fill-neon{background:linear-gradient(90deg,#00a2ff,#36d5ff);box-shadow:0 0 12px rgba(0,162,255,.45)}
         .fill-cyan{background:linear-gradient(90deg,#00e5ff,#00a2ff)}
         .fill-green{background:linear-gradient(90deg,#10b981,#38e2b0)}
-        .fill-orange{background:linear-gradient(90deg,#ffb347,#ffd26f)}
 
-        /* FAQ */
+        /* ── FAQ ── */
         .faq-list{display:flex;flex-direction:column;gap:12px;margin-top:48px;max-width:860px}
         .faq-item{border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);overflow:hidden;transition:.25s ease}
         .faq-item.open{border-color:rgba(0,162,255,.22);background:linear-gradient(180deg,rgba(0,162,255,.06),rgba(0,162,255,.02))}
@@ -234,10 +262,11 @@ export default function LandingPage() {
         .faq-item.open .faq-a{max-height:400px;padding-bottom:22px}
         .faq-a strong{color:#fff}
 
-        /* FOOTER */
+        /* ── FOOTER ── */
         .footer{padding:34px 0 46px;border-top:1px solid rgba(255,255,255,.06);color:var(--muted)}
         .footer-wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
         .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
+
         .fade{opacity:0;transform:translateY(24px);transition:.7s ease}
         .fade.show{opacity:1;transform:none}
 
@@ -247,7 +276,8 @@ export default function LandingPage() {
           .container{width:min(100% - 20px,1200px)}.hero{padding-top:100px}
           .title{font-size:clamp(24px,9vw,42px)}.desc{font-size:15px}.section{padding:32px 0}
           .glow-btn,.ghost-btn{width:100%}.screen-chip{font-size:10px;padding:5px 9px}
-          .nav-wrap{height:60px}.brand{font-size:16px}.nav-cta{font-size:10px;padding:6px 10px;white-space:nowrap;border-radius:8px;margin-left:6px}
+          .nav-wrap{height:60px}.brand{font-size:16px}
+          .nav-cta{font-size:10px;padding:6px 10px;white-space:nowrap;border-radius:8px;margin-left:6px}
           .hero-wrap{gap:24px}.cards-3{grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
           .info-card{padding:18px 14px}.info-card h3{font-size:14px}.info-card p{font-size:13px}
           .ic{width:36px;height:36px;font-size:18px;margin-bottom:10px}
@@ -270,7 +300,6 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* Fonts */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -310,7 +339,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* PHONE CAROUSEL */}
           <div className="showcase fade">
             <div className="orb one" /><div className="orb two" /><div className="orb three" />
             <div className="phone-stage" id="phoneStage">
@@ -412,27 +440,25 @@ export default function LandingPage() {
           <div className="label">Тарифы</div>
           <h2 className="title">Начни бесплатно — <span className="grad">расширяй по мере роста</span></h2>
           <p className="desc">Без обязательств. Без автопродления. Отмена в любой момент.</p>
+
           <div className="pricing">
 
             {/* СТАРТ */}
             <div className="plan">
               <div className="badge blue">7 ДНЕЙ БЕСПЛАТНО</div>
               <h3>Старт</h3>
-              <div className="sub">Пробный доступ — попробуй без карты</div>
+              <div className="sub">Попробуй без карты и без ограничений</div>
               <div className="price">0 <small>₽</small></div>
               <div className="per">бесплатно · 7 дней</div>
               <ul className="plan-features">
-                <li>Дневник питания — пробный доступ</li>
+                <li>Дневник питания (ручной ввод, до 4 блюд/день)</li>
                 <li>Водный баланс</li>
-                <li>Отслеживание активности</li>
+                <li>Добавление активности (до 2/день)</li>
                 <li>Отслеживание веса</li>
                 <li>Список покупок</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
+                <li>Контроль аллергенов</li>
+                <li>Рекомендации HealthBite каждый день</li>
+                {/* spacers до 8 — выравнивание с Месяцем */}
                 <li className="spacer">—</li>
               </ul>
               <div className="plan-cta">
@@ -441,24 +467,21 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* ПРО */}
+            {/* МЕСЯЦ */}
             <div className="plan pop">
               <div className="badge green">ПОПУЛЯРНЫЙ</div>
-              <h3>Про</h3>
+              <h3>Месяц</h3>
               <div className="sub">Полный доступ ко всем функциям</div>
               <div className="price">399 <small>₽/мес</small></div>
               <div className="per">≈ 13 ₽/день</div>
               <ul className="plan-features">
                 <li>Всё из тарифа Старт — без ограничений</li>
                 <li>Сканирование штрихкодов</li>
-                <li>Контроль аллергенов</li>
                 <li>Генерация рецептов HealthBite</li>
                 <li>Рацион питания на неделю</li>
                 <li>Распознавание блюд по фото 📸</li>
                 <li>Аналитика за 30 дней</li>
-                <li>Рекомендации HealthBite каждый день</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
+                {/* spacers до 8 */}
                 <li className="spacer">—</li>
                 <li className="spacer">—</li>
               </ul>
@@ -476,18 +499,15 @@ export default function LandingPage() {
               <div className="price">3 490 <small>₽/год</small></div>
               <div className="per">всего 10 ₽/день · вместо 4 788 ₽</div>
               <ul className="plan-features">
-                <li>Всё из тарифа Старт — без ограничений</li>
-                <li>Сканирование штрихкодов</li>
-                <li>Контроль аллергенов</li>
-                <li>Генерация рецептов HealthBite</li>
-                <li>Рацион питания на неделю</li>
-                <li>Распознавание блюд по фото 📸</li>
-                <li>Аналитика за 30 дней</li>
-                <li>Рекомендации HealthBite каждый день</li>
+                <li>Всё из тарифа Месяц</li>
+                <li>Аналитика за весь год</li>
                 <li>История без ограничений</li>
                 <li>Приоритетная поддержка</li>
                 <li>Ранний доступ к новым функциям</li>
                 <li>Закрытая группа в Telegram и на сайте</li>
+                {/* spacers до 8 */}
+                <li className="spacer">—</li>
+                <li className="spacer">—</li>
               </ul>
               <div className="plan-cta">
                 <Link href="/login" className="glow-btn plan-btn">Получить доступ — 3 490 ₽/год</Link>
@@ -509,61 +529,47 @@ export default function LandingPage() {
           <div className="faq-list">
 
             <div className="faq-item">
-              <div className="faq-q">
-                Нужна ли карта для бесплатного периода?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Нужна ли карта для бесплатного периода?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
-                Нет. Тариф «Старт» на 7 дней полностью бесплатный — карта не нужна, автоматического
-                списания нет. По окончании 7 дней приложение предложит выбрать платный тариф,
-                но без принудительных ограничений.
+                Нет. Тариф «Старт» на 7 дней полностью бесплатный — карта не нужна,
+                автоматического списания нет. По окончании 7 дней приложение предложит
+                выбрать платный тариф, но без принудительных ограничений.
               </div>
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Что доступно в дневнике питания на пробном периоде?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Что доступно в дневнике питания на пробном периоде?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
-                В пробном периоде доступен базовый дневник питания: можно <strong>добавлять блюда
-                вручную</strong> и видеть суммарное КБЖУ за день — белки, жиры, углеводы и калории.
-                Сканирование штрихкодов, распознавание по фото, генерация рецептов и рацион на
-                неделю доступны в тарифах «Про» и «Год». Этого достаточно, чтобы познакомиться
-                с приложением и понять, насколько оно подходит именно тебе.
+                В пробном периоде доступен базовый дневник питания: можно{' '}
+                <strong>добавлять блюда вручную</strong> (до 4 в день) и видеть суммарное КБЖУ —
+                белки, жиры, углеводы и калории. Также работают: водный баланс, добавление
+                активности, отслеживание веса, список покупок, контроль аллергенов и ежедневные
+                рекомендации HealthBite. Сканирование штрихкодов, распознавание по фото,
+                генерация рецептов и рацион на неделю доступны в тарифах «Месяц» и «Год».
               </div>
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Как работает распознавание блюд по фото?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Как работает распознавание блюд по фото?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 Ты фотографируешь блюдо — HealthBite определяет состав и автоматически добавляет
-                КБЖУ в дневник. Функция доступна на тарифах «Про» и «Год». На пробном периоде
-                блюдо можно добавить вручную.
+                КБЖУ в дневник. Функция доступна на тарифах «Месяц» и «Год».
+                На пробном периоде блюдо можно добавить вручную.
               </div>
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Что такое рацион питания на неделю?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Что такое рацион питания на неделю?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
-                Это персональный план блюд на каждый день, который HealthBite составляет с учётом
-                твоих целей, аллергенов и предпочтений. Его можно редактировать вручную — или
-                дополнить уже готовыми рекомендациями по питанию, которые у тебя есть.
-                Доступен на тарифах «Про» и «Год».
+                Это персональный план блюд на каждый день, который HealthBite составляет
+                с учётом твоих целей, аллергенов и предпочтений. Его можно редактировать
+                вручную — или дополнить уже готовыми рекомендациями по питанию, которые
+                у тебя есть. Доступен на тарифах «Месяц» и «Год».
               </div>
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Мои данные сохранятся, если я отменю подписку?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Мои данные сохранятся, если я отменю подписку?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 Да. Все записи в дневнике, история веса и прогресс остаются в твоём аккаунте.
                 При истечении подписки пользоваться приложением в полном объёме не получится,
@@ -572,22 +578,16 @@ export default function LandingPage() {
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Можно ли отменить подписку в любой момент?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Можно ли отменить подписку в любой момент?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
-                Да, без штрафов и объяснений. Деньги за неиспользованный остаток периода не
-                возвращаются — подписка работает ровно до конца оплаченного срока.{' '}
+                Да, без штрафов и объяснений. Деньги за неиспользованный остаток периода
+                не возвращаются — подписка работает ровно до конца оплаченного срока.{' '}
                 <strong>Автопродления нет.</strong>
               </div>
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Считает ли приложение только калории или КБЖУ полностью?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Считает ли приложение только калории или КБЖУ полностью?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 Полностью КБЖУ: белки, жиры, углеводы и калории. На главном экране всё сразу —
                 с прогресс-барами и твоей дневной нормой.
@@ -595,10 +595,7 @@ export default function LandingPage() {
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Как HealthBite считает норму воды?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Как HealthBite считает норму воды?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 Норма рассчитывается на основе данных профиля: веса, роста и уровня активности.
                 При желании ты можешь установить свою цель вручную.
@@ -606,10 +603,7 @@ export default function LandingPage() {
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Где можно скачать приложение?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Где можно скачать приложение?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 HealthBite доступен в <strong>App Store</strong> и <strong>Google Play</strong>.
                 Найди приложение по названию «HealthBite» или перейди по ссылке на этой странице.
@@ -617,10 +611,7 @@ export default function LandingPage() {
             </div>
 
             <div className="faq-item">
-              <div className="faq-q">
-                Синхронизируются ли данные между устройствами?
-                <div className="faq-arrow">▾</div>
-              </div>
+              <div className="faq-q">Синхронизируются ли данные между устройствами?<div className="faq-arrow">▾</div></div>
               <div className="faq-a">
                 Да. Данные хранятся в облаке и автоматически синхронизируются между всеми
                 твоими устройствами.
