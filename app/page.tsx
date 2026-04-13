@@ -117,14 +117,14 @@ export default function LandingPage() {
           --c-pro-bdr:     rgba(16,185,129,.28);
           --c-pro-txt:     #75ebc7;
 
-          /* Год — та же бирюза что у Старта */
-          --c-year:        #00C9B1;
-          --c-year-2:      #00A2C9;
-          --c-year-glow:   rgba(0,201,177,.45);
-          --c-year-glow2:  rgba(0,201,177,.18);
-          --c-year-bg:     rgba(0,201,177,.14);
-          --c-year-bdr:    rgba(0,201,177,.28);
-          --c-year-txt:    #7bedd8;
+          /* Год — голубой */
+--c-year:        #00A2FF;
+--c-year-2:      #36d5ff;
+--c-year-glow:   rgba(0,162,255,.5);
+--c-year-glow2:  rgba(0,162,255,.2);
+--c-year-bg:     rgba(0,162,255,.14);
+--c-year-bdr:    rgba(0,162,255,.28);
+--c-year-txt:    #7fd4ff;
         }
         html{scroll-behavior:smooth}
         body{
