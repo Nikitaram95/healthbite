@@ -27,7 +27,7 @@ interface Post {
 const CATEGORIES = [
   { key: 'all',       label: 'Все'         },
   { key: 'food',      label: 'Питание'     },
-  { key: 'mental',    label: 'Ментальное'  },
+  { key: 'mental',    label: 'Душевное состояние'  },
   { key: 'sport',     label: 'Спорт'       },
   { key: 'health',    label: 'Здоровье'    },
   { key: 'lifestyle', label: 'Образ жизни' },

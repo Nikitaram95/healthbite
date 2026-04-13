@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 const CATEGORIES = [
-  { id: 'ai',     label: 'AI' },
-  { id: 'health', label: 'Здоровье' },
-  { id: 'food',   label: 'Питание' },
-  { id: 'sport',  label: 'Спорт' },
-  { id: 'mental', label: 'Ментальное' },
+  { id: 'food',      label: 'Питание' },
+  { id: 'mental',    label: 'Душевное состояние' },
+  { id: 'sport',     label: 'Спорт' },
+  { id: 'health',    label: 'Здоровье' },
+  { id: 'lifestyle', label: 'Образ жизни' },
 ];
 
 const AUTHORS = [
@@ -29,7 +29,7 @@ export default function UploadPage() {
 
   const [title, setTitle]       = useState('');
   const [description, setDesc]  = useState('');
-  const [category, setCategory] = useState('health');
+  const [category, setCategory] = useState('food');
   const [author, setAuthor]     = useState(AUTHORS[0].label);
   const [file, setFile]         = useState<File | null>(null);
   const [preview, setPreview]   = useState('');
