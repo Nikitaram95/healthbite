@@ -451,12 +451,11 @@ export default function LandingPage() {
               <div className="price">0 <small>₽</small></div>
               <div className="per">бесплатно · 7 дней</div>
               <ul className="plan-features">
-                <li>Дневник питания (ручной ввод, до 4 блюд/день)</li>
+                <li>Дневник питания (ручной ввод, 4 блюда/день)</li>
                 <li>Водный баланс</li>
                 <li>Добавление активности (до 2/день)</li>
                 <li>Отслеживание веса</li>
                 <li>Список покупок</li>
-                <li>Контроль аллергенов</li>
                 <li>Рекомендации HealthBite каждый день</li>
                 {/* spacers до 8 — выравнивание с Месяцем */}
                 <li className="spacer">—</li>
