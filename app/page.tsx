@@ -435,88 +435,86 @@ export default function LandingPage() {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="section">
-        <div className="container fade">
-          <div className="label">Тарифы</div>
-          <h2 className="title">Начни бесплатно — <span className="grad">расширяй по мере роста</span></h2>
-          <p className="desc">Без обязательств. Без автопродления. Отмена в любой момент.</p>
+<section id="pricing" className="section">
+  <div className="container fade">
+    <div className="label">Тарифы</div>
+    <h2 className="title">Начни бесплатно — <span className="grad">расширяй по мере роста</span></h2>
+    <p className="desc">Без обязательств. Без автопродления. Отмена в любой момент.</p>
 
-          <div className="pricing">
+    <div className="pricing">
 
-            {/* СТАРТ */}
-            <div className="plan">
-              <div className="badge blue">7 ДНЕЙ БЕСПЛАТНО</div>
-              <h3>Старт</h3>
-              <div className="sub">Попробуй без карты и без ограничений</div>
-              <div className="price">0 <small>₽</small></div>
-              <div className="per">бесплатно · 7 дней</div>
-              <ul className="plan-features">
-                <li>Дневник питания (ручной ввод, 4 блюда/день)</li>
-                <li>Водный баланс</li>
-                <li>Добавление активности (до 2/день)</li>
-                <li>Отслеживание веса</li>
-                <li>Список покупок</li>
-                <li>Рекомендации HealthBite каждый день</li>
-                {/* spacers до 8 — выравнивание с Месяцем */}
-                <li className="spacer">—</li>
-              </ul>
-              <div className="plan-cta">
-                <Link href="/login" className="glow-btn plan-btn">Начать бесплатно</Link>
-                <div className="plan-note">Без карты. Без автопродления.</div>
-              </div>
-            </div>
-
-            {/* МЕСЯЦ */}
-            <div className="plan pop">
-              <div className="badge green">ПОПУЛЯРНЫЙ</div>
-              <h3>Месяц</h3>
-              <div className="sub">Полный доступ ко всем функциям</div>
-              <div className="price">399 <small>₽/мес</small></div>
-              <div className="per">≈ 13 ₽/день</div>
-              <ul className="plan-features">
-                <li>Всё из тарифа Старт — без ограничений</li>
-                <li>Сканирование штрихкодов</li>
-                <li>Генерация рецептов HealthBite</li>
-                <li>Рацион питания на неделю</li>
-                <li>Распознавание блюд по фото 📸</li>
-                <li>Аналитика за 30 дней</li>
-                {/* spacers до 8 */}
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-              </ul>
-              <div className="plan-cta">
-                <Link href="/login" className="glow-btn plan-btn">Получить доступ — 399 ₽</Link>
-                <div className="plan-note">Отмена в любой момент. Без автопродления.</div>
-              </div>
-            </div>
-
-            {/* ГОД */}
-            <div className="plan best">
-              <div className="badge yellow">ВЫГОДНО · −27%</div>
-              <h3>Год</h3>
-              <div className="sub">Максимальная выгода</div>
-              <div className="price">3 490 <small>₽/год</small></div>
-              <div className="per">всего 10 ₽/день · вместо 4 788 ₽</div>
-              <ul className="plan-features">
-                <li>Всё из тарифа Месяц</li>
-                <li>Аналитика за весь год</li>
-                <li>История без ограничений</li>
-                <li>Приоритетная поддержка</li>
-                <li>Ранний доступ к новым функциям</li>
-                <li>Закрытая группа в Telegram и на сайте</li>
-                {/* spacers до 8 */}
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
-              </ul>
-              <div className="plan-cta">
-                <Link href="/login" className="glow-btn plan-btn">Получить доступ — 3 490 ₽/год</Link>
-                <div className="plan-note">Отмена в любой момент. Без автопродления.</div>
-              </div>
-            </div>
-
-          </div>
+      {/* СТАРТ */}
+      <div className="plan">
+        <div className="badge blue">7 ДНЕЙ БЕСПЛАТНО</div>
+        <h3>Старт</h3>
+        <div className="sub">Попробуй без карты и без ограничений</div>
+        <div className="price">0 <small>₽</small></div>
+        <div className="per">бесплатно · 7 дней</div>
+        <ul className="plan-features">
+          <li>Дневник питания (4 блюда/день)</li>
+          <li>Водный баланс</li>
+          <li>Добавление активности (до 2/день)</li>
+          <li>Отслеживание веса</li>
+          <li>Список покупок</li>
+          <li>Контроль аллергенов</li>
+          <li>Рекомендации HealthBite каждый день</li>
+          <li className="spacer">—</li>
+        </ul>
+        <div className="plan-cta">
+          <Link href="/login" className="glow-btn plan-btn">Начать бесплатно</Link>
+          <div className="plan-note">Без карты.</div>
         </div>
-      </section>
+      </div>
+
+      {/* МЕСЯЦ */}
+      <div className="plan pop">
+        <div className="badge green">ПОПУЛЯРНЫЙ</div>
+        <h3>Месяц</h3>
+        <div className="sub">Полный доступ ко всем функциям</div>
+        <div className="price">399 <small>₽/мес</small></div>
+        <div className="per">≈ 13 ₽/день</div>
+        <ul className="plan-features">
+          <li>Всё из тарифа Старт — без ограничений</li>
+          <li>Сканирование штрихкодов</li>
+          <li>Генерация рецептов HealthBite</li>
+          <li>Рацион питания на неделю</li>
+          <li>Распознавание блюд по фото 📸</li>
+          <li>Аналитика за 30 дней</li>
+          <li className="spacer">—</li>
+          <li className="spacer">—</li>
+        </ul>
+        <div className="plan-cta">
+          <Link href="/login" className="glow-btn plan-btn">Получить доступ — 399 ₽</Link>
+          <div className="plan-note">Без автопродления.</div>
+        </div>
+      </div>
+
+      {/* ГОД */}
+      <div className="plan best">
+        <div className="badge yellow">ВЫГОДНО · −27%</div>
+        <h3>Год</h3>
+        <div className="sub">Максимальная выгода</div>
+        <div className="price">3 490 <small>₽/год</small></div>
+        <div className="per">всего 10 ₽/день · вместо 4 788 ₽</div>
+        <ul className="plan-features">
+          <li>Всё из тарифа Месяц</li>
+          <li>Аналитика за весь год</li>
+          <li>История без ограничений</li>
+          <li>Приоритетная поддержка</li>
+          <li>Ранний доступ к новым функциям</li>
+          <li>Закрытая группа в Telegram и на сайте</li>
+          <li className="spacer">—</li>
+          <li className="spacer">—</li>
+        </ul>
+        <div className="plan-cta">
+          <Link href="/login" className="glow-btn plan-btn">Получить доступ — 3 490 ₽/год</Link>
+          <div className="plan-note">Без автопродления.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
 
       {/* FAQ */}
       <section id="faq" className="section">
