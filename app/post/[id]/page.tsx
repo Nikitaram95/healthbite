@@ -33,7 +33,7 @@ interface Comment {
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const CATEGORIES: Record<string, string> = {
-  ai:        'AI',           // ← добавлено
+  ai:        'AI',
   food:      'Питание',
   mental:    'Ментальное',
   sport:     'Спорт',
@@ -42,7 +42,7 @@ const CATEGORIES: Record<string, string> = {
 };
 
 const CAT_COLORS: Record<string, string> = {
-  ai:        'rgba(122,57,187,.18)',  // ← добавлено
+  ai:        'rgba(122,57,187,.18)',
   food:      'rgba(255,179,71,.18)',
   mental:    'rgba(239,68,68,.18)',
   sport:     'rgba(0,229,255,.18)',
@@ -51,7 +51,7 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 const CAT_TEXT: Record<string, string> = {
-  ai:        '#c79df5',              // ← добавлено
+  ai:        '#c79df5',
   food:      '#ffd08f',
   mental:    '#ff8e8e',
   sport:     '#7beeff',
@@ -148,6 +148,101 @@ function SkeletonComments() {
   );
 }
 
+// ─── Лайтбокс ─────────────────────────────────────────────────────────────────
+
+function MediaLightbox({
+  src, type, alt, onClose,
+}: { src: string; type: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,.93)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+        animation: 'lbFadeIn .18s ease',
+      }}
+    >
+      <style>{`
+        @keyframes lbFadeIn { from { opacity:0 } to { opacity:1 } }
+        @keyframes lbZoom   { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
+      `}</style>
+
+      {/* Кнопка закрытия */}
+      <button
+        onClick={onClose}
+        aria-label="Закрыть"
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          width: 40, height: 40, borderRadius: '50%',
+          background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.18)',
+          color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1, transition: 'background .15s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.2)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,.1)')}
+      >×</button>
+
+      {/* Подпись Escape */}
+      <div style={{
+        position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+        fontSize: 12, color: 'rgba(255,255,255,.28)', letterSpacing: '.04em',
+        pointerEvents: 'none',
+      }}>
+        ESC или тап на фон — закрыть
+      </div>
+
+      {/* Контент */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ animation: 'lbZoom .2s ease', maxWidth: '100%', maxHeight: '100%', display: 'flex' }}
+      >
+        {type === 'video' ? (
+          <video
+            src={src}
+            controls
+            autoPlay
+            playsInline
+            style={{
+              display: 'block',
+              maxWidth: 'min(960px, 95vw)',
+              maxHeight: '90dvh',
+              borderRadius: 14,
+              background: '#000',
+              boxShadow: '0 0 80px rgba(0,0,0,.8)',
+            }}
+          />
+        ) : (
+          <img
+            src={src}
+            alt={alt}
+            style={{
+              display: 'block',
+              maxWidth: 'min(960px, 95vw)',
+              maxHeight: '90dvh',
+              borderRadius: 14,
+              objectFit: 'contain',
+              boxShadow: '0 0 80px rgba(0,0,0,.8)',
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Основной компонент ───────────────────────────────────────────────────────
 
 export default function PostPage() {
@@ -164,14 +259,14 @@ export default function PostPage() {
   const [sendingComment,  setSendingComment]  = useState(false);
   const [commentError,    setCommentError]    = useState('');
   const [imgError,        setImgError]        = useState(false);
+  const [mediaOpen,       setMediaOpen]       = useState(false);
 
-  // ─── Загрузка поста ─────────────────────────────────────────────────────
+  // ─── Загрузка поста ────────────────────────────────────────────────────
 
   const loadPost = useCallback(async () => {
     if (!id) return;
     setLoadingPost(true);
     try {
-      // user.id === phone (см. useAuth)
       const qs  = user?.id ? `?userId=${encodeURIComponent(user.id)}` : '';
       const res = await fetch(`${API}/post/${id}${qs}`);
       if (res.status === 404) { router.push('/feed'); return; }
@@ -184,7 +279,7 @@ export default function PostPage() {
     }
   }, [id, user?.id, router]);
 
-  // ─── Загрузка комментариев ──────────────────────────────────────────────
+  // ─── Загрузка комментариев ─────────────────────────────────────────────
 
   const loadComments = useCallback(async () => {
     if (!id) return;
@@ -204,12 +299,11 @@ export default function PostPage() {
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
 
-  // ─── Лайк ───────────────────────────────────────────────────────────────
+  // ─── Лайк ─────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async () => {
     if (!post || !user?.id || likePending) return;
     const wasLiked = post.liked;
-    // Оптимистичное обновление
     setPost(p => p ? { ...p, liked: !wasLiked, likes: wasLiked ? p.likes - 1 : p.likes + 1 } : p);
     setLikePending(true);
     try {
@@ -219,7 +313,7 @@ export default function PostPage() {
         body: JSON.stringify({
           action: wasLiked ? 'unlikepost' : 'likepost',
           postId: post.postid,
-          userId: user.id,  // ← user.id === phone
+          userId: user.id,
         }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -230,7 +324,6 @@ export default function PostPage() {
         liked: typeof data.liked === 'boolean' ? data.liked : p.liked,
       } : p);
     } catch (e) {
-      // Откатываем
       console.error('like error:', e);
       setPost(p => p ? { ...p, liked: wasLiked, likes: wasLiked ? p.likes + 1 : p.likes - 1 } : p);
     } finally {
@@ -238,7 +331,7 @@ export default function PostPage() {
     }
   }, [post, user?.id, likePending]);
 
-  // ─── Отправка комментария ────────────────────────────────────────────────
+  // ─── Отправка комментария ──────────────────────────────────────────────
 
   const handleComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,7 +344,6 @@ export default function PostPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // ← токен передаём, чтобы бэкенд знал автора
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ text: commentText.trim() }),
@@ -266,7 +358,7 @@ export default function PostPage() {
     }
   }, [commentText, id, loadComments, getToken]);
 
-  // ─── Скелетон загрузки ───────────────────────────────────────────────────
+  // ─── Скелетон загрузки ────────────────────────────────────────────────
 
   if (loadingPost) {
     return (
@@ -301,16 +393,24 @@ export default function PostPage() {
   const catLabel = getCategoryLabel(post.categoryid);
   const catBg    = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
   const catTxt   = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
+  const commenterName = user?.name || '';
 
-  // displayName автора комментария — из хука
- const commenterName = user?.name || '';
-
-  // ─── Рендер ─────────────────────────────────────────────────────────────
+  // ─── Рендер ───────────────────────────────────────────────────────────
 
   return (
     <div style={s.page}>
       <style>{globalStyles}</style>
       <div style={s.gridBg} />
+
+      {/* Лайтбокс */}
+      {mediaOpen && post.mediaurl && (
+        <MediaLightbox
+          src={post.mediaurl}
+          type={post.type}
+          alt={post.title}
+          onClose={() => setMediaOpen(false)}
+        />
+      )}
 
       <header style={s.header}>
         <div style={s.headerInner}>
@@ -324,16 +424,78 @@ export default function PostPage() {
 
         {/* Пост */}
         <article style={{ ...s.card, marginBottom: 16 }}>
+
+          {/* Медиа */}
           {post.mediaurl && !imgError && (
             post.type === 'video' ? (
-              <video src={post.mediaurl} controls playsInline
-                style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }} />
+              <div
+                style={{ position: 'relative', cursor: 'pointer' }}
+                onClick={() => setMediaOpen(true)}
+              >
+                <video
+                  src={post.mediaurl}
+                  playsInline
+                  muted
+                  style={{ width: '100%', display: 'block', maxHeight: 300, objectFit: 'cover', background: '#000' }}
+                />
+                {/* Play-оверлей */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,.32)',
+                  transition: 'background .18s',
+                }}>
+                  <div style={{
+                    width: 60, height: 60, borderRadius: '50%',
+                    background: 'rgba(0,162,255,.22)',
+                    border: '2px solid rgba(0,162,255,.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 0 24px rgba(0,162,255,.35)',
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#00e5ff">
+                      <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                  </div>
+                </div>
+                {/* Подпись */}
+                <div style={{
+                  position: 'absolute', bottom: 10, right: 12,
+                  fontSize: 11, color: 'rgba(255,255,255,.5)',
+                  background: 'rgba(0,0,0,.4)', borderRadius: 6, padding: '3px 8px',
+                }}>
+                  нажми для просмотра
+                </div>
+              </div>
             ) : (
-              <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
-                <img src={post.mediaurl} alt={post.title}
+              <div
+                style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', cursor: 'zoom-in' }}
+                onClick={() => setMediaOpen(true)}
+              >
+                <img
+                  src={post.mediaurl}
+                  alt={post.title}
                   onError={() => setImgError(true)}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform .3s ease' }}
+                  onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.02)')}
+                  onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                />
                 <div style={s.mediaOverlay} />
+                {/* Иконка лупы */}
+                <div style={{
+                  position: 'absolute', bottom: 12, right: 12,
+                  background: 'rgba(0,0,0,.48)', borderRadius: 8, padding: '5px 8px',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: 11, color: 'rgba(255,255,255,.55)',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                  открыть
+                </div>
               </div>
             )
           )}
@@ -370,9 +532,12 @@ export default function PostPage() {
 
             {/* Действия */}
             <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={handleLike} disabled={likePending || !user}
+              <button
+                onClick={handleLike}
+                disabled={likePending || !user}
                 aria-label={post.liked ? 'Убрать лайк' : 'Поставить лайк'}
-                style={{ ...s.actionBtn, ...(post.liked ? s.actionBtnLiked : {}), opacity: likePending ? 0.6 : 1, cursor: user ? 'pointer' : 'default' }}>
+                style={{ ...s.actionBtn, ...(post.liked ? s.actionBtnLiked : {}), opacity: likePending ? 0.6 : 1, cursor: user ? 'pointer' : 'default' }}
+              >
                 <HeartIcon filled={post.liked} />
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{post.likes}</span>
               </button>
@@ -419,7 +584,8 @@ export default function PostPage() {
                   placeholder="Напиши комментарий..."
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
-                  rows={2} maxLength={500}
+                  rows={2}
+                  maxLength={500}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
                       handleComment(e as unknown as React.FormEvent);
@@ -434,8 +600,11 @@ export default function PostPage() {
               )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 42 }}>
                 <span style={{ fontSize: '.75rem', color: '#3a4f6a' }}>Ctrl+Enter</span>
-                <button type="submit" disabled={sendingComment || !commentText.trim()}
-                  style={{ ...s.btnPrimary, opacity: sendingComment || !commentText.trim() ? 0.45 : 1, cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer' }}>
+                <button
+                  type="submit"
+                  disabled={sendingComment || !commentText.trim()}
+                  style={{ ...s.btnPrimary, opacity: sendingComment || !commentText.trim() ? 0.45 : 1, cursor: sendingComment || !commentText.trim() ? 'default' : 'pointer' }}
+                >
                   {sendingComment ? '...' : 'Отправить'}
                 </button>
               </div>
@@ -520,18 +689,18 @@ const globalStyles = `
 `;
 
 const s: Record<string, React.CSSProperties> = {
-  page:        { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
-  gridBg:      { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
-  header:      { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner: { maxWidth: 720, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo:        { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', textDecoration: 'none' },
-  backBtn:     { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
-  main:        { maxWidth: 720, margin: '0 auto', padding: '16px 16px 48px', position: 'relative', zIndex: 1 },
-  card:        { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
-  mediaOverlay:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, rgba(9,17,29,.9))', pointerEvents: 'none' },
-  catBadge:    { display: 'inline-block', padding: '.15rem .625rem', borderRadius: 999, fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' as const },
-  actionBtn:   { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '.35rem .75rem', cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif', fontWeight: 500, transition: 'all .18s ease' },
+  page:           { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
+  gridBg:         { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
+  header:         { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner:    { maxWidth: 720, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo:           { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', textDecoration: 'none' },
+  backBtn:        { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
+  main:           { maxWidth: 720, margin: '0 auto', padding: '16px 16px 48px', position: 'relative', zIndex: 1 },
+  card:           { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
+  mediaOverlay:   { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, rgba(9,17,29,.9))', pointerEvents: 'none' },
+  catBadge:       { display: 'inline-block', padding: '.15rem .625rem', borderRadius: 999, fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' as const },
+  actionBtn:      { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '.35rem .75rem', cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif', fontWeight: 500, transition: 'all .18s ease' },
   actionBtnLiked: { borderColor: 'rgba(239,68,68,.4)', color: '#ff8e8e', background: 'rgba(239,68,68,.1)', boxShadow: '0 0 10px rgba(239,68,68,.2)' },
-  viewsCount:  { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' },
-  btnPrimary:  { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))', border: '1px solid rgba(0,162,255,.35)', color: '#fff', borderRadius: 999, fontSize: '.875rem', fontWeight: 700, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)', cursor: 'pointer' },
+  viewsCount:     { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' },
+  btnPrimary:     { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))', border: '1px solid rgba(0,162,255,.35)', color: '#fff', borderRadius: 999, fontSize: '.875rem', fontWeight: 700, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)', cursor: 'pointer' },
 };

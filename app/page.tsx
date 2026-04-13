@@ -443,7 +443,7 @@ export default function LandingPage() {
 
           <div className="pricing">
 
-            {/* СТАРТ */}
+                        {/* СТАРТ */}
             <div className="plan">
               <div className="badge blue">7 ДНЕЙ</div>
               <h3>Старт</h3>
@@ -456,10 +456,7 @@ export default function LandingPage() {
                 <li>Добавление активности (до 2/день)</li>
                 <li>Отслеживание веса</li>
                 <li>Список покупок</li>
-                <li>Контроль аллергенов</li>
                 <li>Рекомендации HealthBite каждый день</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
               </ul>
               <div className="plan-cta">
                 <Link href="/login" className="glow-btn plan-btn fill-neon">Начать бесплатно</Link>
@@ -482,8 +479,6 @@ export default function LandingPage() {
                 <li>Распознавание блюд по фото 📸</li>
                 <li>Аналитика за 30 дней</li>
                 <li className="spacer">—</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
               </ul>
               <div className="plan-cta">
                 <Link href="/login" className="glow-btn plan-btn fill-green">Получить доступ — 399 ₽</Link>
@@ -505,8 +500,6 @@ export default function LandingPage() {
                 <li>Приоритетная поддержка</li>
                 <li>Ранний доступ к новым функциям</li>
                 <li>Закрытая группа в Telegram и на сайте</li>
-                <li className="spacer">—</li>
-                <li className="spacer">—</li>
                 <li className="spacer">—</li>
               </ul>
               <div className="plan-cta">
