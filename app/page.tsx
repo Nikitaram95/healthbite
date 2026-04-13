@@ -243,7 +243,7 @@ export default function LandingPage() {
         .plan-features li::before{content:"✓";color:var(--neon2);font-weight:800;flex:0 0 auto}
         .plan-features li.spacer{visibility:hidden;pointer-events:none}
         .plan-features li.spacer::before{content:"✓"}
-        .plan-cta{margin-top:24px}
+        .plan-cta { margin-top: auto; padding-top: 20px; }
         .plan-btn{width:100%;justify-content:center}
         .plan-note{text-align:center;font-size:12px;color:rgba(255,255,255,.38);margin-top:10px}
         .fill-neon{background:linear-gradient(90deg,#00a2ff,#36d5ff);box-shadow:0 0 12px rgba(0,162,255,.45)}
@@ -444,68 +444,35 @@ export default function LandingPage() {
     <div className="pricing">
 
       {/* СТАРТ */}
-      <div className="plan">
-        <div className="badge blue">7 ДНЕЙ БЕСПЛАТНО</div>
-        <h3>Старт</h3>
-        <div className="sub">Попробуй без карты и без ограничений</div>
-        <div className="price">0 <small>₽</small></div>
-        <div className="per">бесплатно · 7 дней</div>
-        <ul className="plan-features">
-          <li>Дневник питания (4 блюда/день)</li>
-          <li>Водный баланс</li>
-          <li>Добавление активности (до 2/день)</li>
-          <li>Отслеживание веса</li>
-          <li>Список покупок</li>
-          <li>Контроль аллергенов</li>
-          <li>Рекомендации HealthBite каждый день</li>
-          <li className="spacer">—</li>
-        </ul>
-        <div className="plan-cta">
-          <Link href="/login" className="glow-btn plan-btn">Начать бесплатно</Link>
-          <div className="plan-note">Без карты.</div>
-        </div>
-      </div>
+<ul className="plan-features">
+  <li>Дневник питания (4 блюда/день)</li>
+  <li>Водный баланс</li>
+  <li>Добавление активности (до 2/день)</li>
+  <li>Отслеживание веса</li>
+  <li>Список покупок</li>
+  <li>Контроль аллергенов</li>
+  <li>Рекомендации HealthBite каждый день</li>
+</ul>
 
-      {/* МЕСЯЦ */}
-      <div className="plan pop">
-        <div className="badge green">ПОПУЛЯРНЫЙ</div>
-        <h3>Месяц</h3>
-        <div className="sub">Полный доступ ко всем функциям</div>
-        <div className="price">399 <small>₽/мес</small></div>
-        <div className="per">≈ 13 ₽/день</div>
-        <ul className="plan-features">
-          <li>Всё из тарифа Старт — без ограничений</li>
-          <li>Сканирование штрихкодов</li>
-          <li>Генерация рецептов HealthBite</li>
-          <li>Рацион питания на неделю</li>
-          <li>Распознавание блюд по фото 📸</li>
-          <li>Аналитика за 30 дней</li>
-          <li className="spacer">—</li>
-          <li className="spacer">—</li>
-        </ul>
-        <div className="plan-cta">
-          <Link href="/login" className="glow-btn plan-btn">Получить доступ — 399 ₽</Link>
-          <div className="plan-note">Без автопродления.</div>
-        </div>
-      </div>
+{/* МЕСЯЦ */}
+<ul className="plan-features">
+  <li>Всё из тарифа Старт — без ограничений</li>
+  <li>Сканирование штрихкодов</li>
+  <li>Генерация рецептов HealthBite</li>
+  <li>Рацион питания на неделю</li>
+  <li>Распознавание блюд по фото 📸</li>
+  <li>Аналитика за 30 дней</li>
+</ul>
 
-      {/* ГОД */}
-      <div className="plan best">
-        <div className="badge yellow">ВЫГОДНО · −27%</div>
-        <h3>Год</h3>
-        <div className="sub">Максимальная выгода</div>
-        <div className="price">3 490 <small>₽/год</small></div>
-        <div className="per">всего 10 ₽/день · вместо 4 788 ₽</div>
-        <ul className="plan-features">
-          <li>Всё из тарифа Месяц</li>
-          <li>Аналитика за весь год</li>
-          <li>История без ограничений</li>
-          <li>Приоритетная поддержка</li>
-          <li>Ранний доступ к новым функциям</li>
-          <li>Закрытая группа в Telegram и на сайте</li>
-          <li className="spacer">—</li>
-          <li className="spacer">—</li>
-        </ul>
+{/* ГОД */}
+<ul className="plan-features">
+  <li>Всё из тарифа Месяц</li>
+  <li>Аналитика за весь год</li>
+  <li>История без ограничений</li>
+  <li>Приоритетная поддержка</li>
+  <li>Ранний доступ к новым функциям</li>
+  <li>Закрытая группа в Telegram и на сайте</li>
+</ul>
         <div className="plan-cta">
           <Link href="/login" className="glow-btn plan-btn">Получить доступ — 3 490 ₽/год</Link>
           <div className="plan-note">Без автопродления.</div>
