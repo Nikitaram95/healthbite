@@ -1,23 +1,21 @@
-'use client';
+code = """'use client';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import Head from 'next/head';
 
 export default function LandingPage() {
   useEffect(() => {
-    // Карусель телефонов
     const N = 5;
     let cur = 0, lastT = 0;
-    const phones = Array.from(document.querySelectorAll<HTMLElement>('.stack-phone'));
-    const chips  = Array.from(document.querySelectorAll<HTMLElement>('#navChips .screen-chip'));
-    const dots   = Array.from(document.querySelectorAll<HTMLElement>('#navDots .cdot'));
+    const phones = Array.from(document.querySelectorAll('.stack-phone'));
+    const chips  = Array.from(document.querySelectorAll('#navChips .screen-chip'));
+    const dots   = Array.from(document.querySelectorAll('#navDots .cdot'));
 
-    function cls(i: number, active: number) {
+    function cls(i, active) {
       const d = ((i - active) % N + N) % N;
       return d===0 ? 'pos-main' : d===1 ? 'pos-right' : d===N-1 ? 'pos-left' : 'pos-back';
     }
-    function syncUi(idx: number) {
+    function syncUi(idx) {
       chips.forEach((c,i) => c.classList.toggle('active', i===idx));
       dots.forEach((d,i) => d.classList.toggle('active', i===idx));
     }
@@ -29,7 +27,7 @@ export default function LandingPage() {
     ));
     syncUi(0);
 
-    function goTo(next: number, fwd: boolean) {
+    function goTo(next, fwd) {
       const now = Date.now();
       if (next===cur || now-lastT < 600) return;
       lastT = now;
@@ -63,14 +61,22 @@ export default function LandingPage() {
         timer = setInterval(() => goTo((cur+1)%N, true), 3800);
       });
       let sx = 0;
-      stage.addEventListener('touchstart', (e: any) => sx = e.touches[0].clientX, {passive:true});
-      stage.addEventListener('touchend', (e: any) => {
+      stage.addEventListener('touchstart', (e) => sx = e.touches[0].clientX, {passive:true});
+      stage.addEventListener('touchend', (e) => {
         const dx = e.changedTouches[0].clientX - sx;
         if (Math.abs(dx)>40) goTo(((cur+(dx<0?1:-1))%N+N)%N, dx<0);
       });
     }
 
-    // Fade-in анимации
+    // FAQ аккордеон
+    document.querySelectorAll('.faq-item').forEach(item => {
+      item.querySelector('.faq-q').addEventListener('click', () => {
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+
     const obs = new IntersectionObserver(
       es => es.forEach(e => e.isIntersecting && e.target.classList.add('show')),
       {threshold:0.12}
@@ -85,7 +91,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <style>{`
+      <style>{\`
         *{margin:0;padding:0;box-sizing:border-box}
         :root{
           --bg:#0D1623;--bg2:#09111d;--card:#10213B;
@@ -105,8 +111,11 @@ export default function LandingPage() {
         .container{width:min(1200px,calc(100% - 40px));margin:0 auto}
         .section{padding:55px 0;position:relative}
         .grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(0,162,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,162,255,.04) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(180deg,transparent,black 15%,black 80%,transparent);pointer-events:none;z-index:0}
-        .label{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;border:1px solid rgba(0,162,255,.24);background:rgba(0,162,255,.08);color:var(--neon2);font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase}
+
+        /* LABEL — теперь шрифт Orbitron */
+        .label{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;border:1px solid rgba(0,162,255,.24);background:rgba(0,162,255,.08);color:var(--neon2);font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;font-family:'Orbitron',sans-serif}
         .label:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--neon);box-shadow:0 0 14px var(--neon)}
+
         .title{font-family:'Orbitron',sans-serif;font-size:clamp(32px,5vw,66px);line-height:1.02;font-weight:800;letter-spacing:-1px;margin:20px 0 18px}
         .title .grad{background:linear-gradient(90deg,#fff,var(--neon),var(--neon2));-webkit-background-clip:text;background-clip:text;color:transparent}
         .desc{font-size:18px;line-height:1.75;color:var(--muted);max-width:760px}
@@ -186,11 +195,22 @@ export default function LandingPage() {
         .t-green{background:rgba(16,185,129,.1);color:#7be7c5;border:1px solid rgba(16,185,129,.18)}
         .t-cyan{background:rgba(0,229,255,.1);color:#7beeff;border:1px solid rgba(0,229,255,.18)}
         .t-orange{background:rgba(255,179,71,.1);color:#ffd08f;border:1px solid rgba(255,179,71,.18)}
-        .pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px}
-        .plan{padding:28px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadow);position:relative}
+
+        /* ═══════════════════════════════════════
+           PRICING — новый блок тарифов
+        ═══════════════════════════════════════ */
+        .pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px;align-items:start}
+        .plan{
+          padding:28px;border-radius:24px;
+          background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+          border:1px solid rgba(255,255,255,.07);
+          box-shadow:var(--shadow);position:relative;
+          display:flex;flex-direction:column;
+        }
         .plan.pop{border-color:rgba(16,185,129,.28);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 50px rgba(16,185,129,.12)}
         .plan.best{border-color:rgba(255,204,0,.28);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 50px rgba(255,204,0,.1)}
-        .badge{position:absolute;top:18px;right:18px;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:800}
+        .badge{position:absolute;top:18px;right:18px;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:800;font-family:'Orbitron',sans-serif;letter-spacing:.5px}
+        .badge.blue{background:rgba(0,162,255,.14);border:1px solid rgba(0,162,255,.28);color:#7fd4ff}
         .badge.green{background:rgba(16,185,129,.14);border:1px solid rgba(16,185,129,.22);color:#75ebc7}
         .badge.yellow{background:rgba(255,204,0,.14);border:1px solid rgba(255,204,0,.22);color:#ffdc70}
         .plan h3{font-family:'Orbitron',sans-serif;font-size:20px;margin-bottom:8px}
@@ -198,20 +218,47 @@ export default function LandingPage() {
         .price{font-family:'Orbitron',sans-serif;font-size:42px;line-height:1;font-weight:800;margin-bottom:8px}
         .price small{font-size:18px;color:#bfd4eb}
         .plan .per{font-size:13px;color:var(--muted);margin-bottom:18px}
-        .plan ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
-        .plan li{font-size:14px;color:#dbe8fa;display:flex;gap:10px;align-items:flex-start;line-height:1.55}
-        .plan li:before{content:"✓";color:var(--neon2);font-weight:800}
+
+        /* Список фич — flex-grow чтобы кнопки были на одном уровне */
+        .plan-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:0;flex:1}
+        .plan-features li{font-size:14px;color:#dbe8fa;display:flex;gap:10px;align-items:flex-start;line-height:1.55}
+        .plan-features li.check:before{content:"✓";color:var(--neon2);font-weight:800;flex:0 0 auto}
+        .plan-features li.cross{color:rgba(255,255,255,.25)}
+        .plan-features li.cross:before{content:"✗";color:rgba(255,255,255,.2);font-weight:800;flex:0 0 auto}
+        .plan-features li.spacer{min-height:24px;visibility:hidden}
+        .plan-features li.spacer:before{content:""}
+
+        .plan-cta{margin-top:24px}
         .plan .plan-btn{width:100%;justify-content:center}
         .plan-note{text-align:center;font-size:12px;color:rgba(255,255,255,.38);margin-top:10px}
+
         .fill-neon{background:linear-gradient(90deg,#00a2ff,#36d5ff);box-shadow:0 0 12px rgba(0,162,255,.45)}
         .fill-cyan{background:linear-gradient(90deg,#00e5ff,#00a2ff)}
         .fill-green{background:linear-gradient(90deg,#10b981,#38e2b0)}
         .fill-orange{background:linear-gradient(90deg,#ffb347,#ffd26f)}
+
+        /* ═══════════════════════════════════════
+           FAQ — блок вопросов и ответов
+        ═══════════════════════════════════════ */
+        .faq-list{display:flex;flex-direction:column;gap:12px;margin-top:48px;max-width:860px}
+        .faq-item{border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);overflow:hidden;transition:.25s ease}
+        .faq-item.open{border-color:rgba(0,162,255,.22);background:linear-gradient(180deg,rgba(0,162,255,.06),rgba(0,162,255,.02))}
+        .faq-q{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;cursor:pointer;font-size:16px;font-weight:700;color:var(--text);user-select:none}
+        .faq-q:hover{color:#fff}
+        .faq-arrow{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;flex:0 0 auto;transition:.3s ease;font-size:14px}
+        .faq-item.open .faq-arrow{background:rgba(0,162,255,.12);border-color:rgba(0,162,255,.24);transform:rotate(180deg)}
+        .faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s ease;padding:0 24px;font-size:15px;line-height:1.75;color:var(--muted)}
+        .faq-item.open .faq-a{max-height:400px;padding-bottom:22px}
+        .faq-a strong{color:#fff}
+
+        /* FOOTER */
         .footer{padding:34px 0 46px;border-top:1px solid rgba(255,255,255,.06);color:var(--muted)}
         .footer-wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
         .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
         .fade{opacity:0;transform:translateY(24px);transition:.7s ease}
         .fade.show{opacity:1;transform:none}
+
+        /* RESPONSIVE */
         @media(max-width:1100px){.hero-wrap,.timeline{grid-template-columns:1fr}}
         @media(max-width:980px){.cards-3,.pricing{grid-template-columns:1fr}.feature-grid{grid-template-columns:1fr}.hero-stats{grid-template-columns:1fr}.nav-links{display:none}}
         @media(max-width:640px){
@@ -235,8 +282,11 @@ export default function LandingPage() {
           .pricing{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px;padding:0 calc(50vw - 39vw) 20px;grid-template-columns:none;margin:0 -20px}
           .pricing::-webkit-scrollbar{display:none}
           .plan{min-width:78vw;max-width:78vw;scroll-snap-align:center;flex-shrink:0}
+          .faq-q{font-size:14px;padding:16px 18px}
+          .faq-a{font-size:14px;padding:0 18px}
+          .faq-item.open .faq-a{padding-bottom:18px}
         }
-      `}</style>
+      \`}</style>
 
       {/* Fonts */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -251,13 +301,11 @@ export default function LandingPage() {
           <div className="brand">HealthBite</div>
           <div className="nav-links">
             <a href="#about">О продукте</a>
-            <a href="#ai">Как работает ИИ</a>
+            <a href="#ai">Как работает HealthBite</a>
             <a href="#progress">Прогресс</a>
-            <a href="#audience">Для кого</a>
             <a href="#pricing">Тарифы</a>
-            <a href="#faq">FAQ</a>
+            <a href="#faq">Вопросы</a>
           </div>
-          {/* ← КНОПКА ВОЙТИ — ведёт на /login */}
           <Link href="/login" className="nav-cta">Войти в личный кабинет</Link>
         </div>
       </nav>
@@ -267,10 +315,9 @@ export default function LandingPage() {
         <div className="container hero-wrap">
           <div className="fade">
             <div className="label">Высокотехнологичный контроль здоровья</div>
-            <h1 className="title">Питание, вода и активность — <span className="grad">в одном ИИ‑приложении</span></h1>
+            <h1 className="title">Питание, вода и активность — <span className="grad">в одном приложении</span></h1>
             <p className="desc">HealthBite помогает видеть реальную картину дня: что ты ешь, сколько пьёшь воды, как двигаешься и как меняется твой <strong>прогресс</strong>. Без сложных таблиц, без ручной рутины, без перегруза лишними деталями.</p>
             <div className="hero-actions">
-              {/* ← КНОПКА CTA — тоже на /login */}
               <Link href="/login" className="glow-btn">Начать бесплатно</Link>
               <a href="#about" className="ghost-btn">Смотреть возможности</a>
             </div>
@@ -321,8 +368,8 @@ export default function LandingPage() {
           <div className="cards-3">
             <div className="info-card"><div className="ic blue">🥗</div><h3>Дневник питания без рутины</h3><p>Добавляй блюда через распознавание фото, штрихкод или вручную.</p></div>
             <div className="info-card"><div className="ic cyan">💧</div><h3>Вода под контролем</h3><p>Водный баланс ведётся наглядно и без лишних действий.</p></div>
-            <div className="info-card"><div className="ic green">👟</div><h3>Активность в общей картине дня</h3><p>Шаги, тренировки и БОВ становятся частью одного экрана.</p></div>
-            <div className="info-card"><div className="ic orange">🤖</div><h3>ИИ‑рекомендации на каждый день</h3><p>Приложение мягко подсказывает, что можно сделать прямо сегодня.</p></div>
+            <div className="info-card"><div className="ic green">👟</div><h3>Активность в общей картине дня</h3><p>Шаги, тренировки и активность становятся частью одного экрана.</p></div>
+            <div className="info-card"><div className="ic orange">🤖</div><h3>Рекомендации на каждый день</h3><p>HealthBite мягко подсказывает, что можно сделать прямо сегодня.</p></div>
           </div>
         </div>
       </section>
@@ -330,8 +377,8 @@ export default function LandingPage() {
       {/* AI */}
       <section id="ai" className="section">
         <div className="container fade">
-          <div className="label">Как работает ИИ</div>
-          <h2 className="title">ИИ, который помогает, а не контролирует</h2>
+          <div className="label">Как работает HealthBite</div>
+          <h2 className="title">Помогает, а не контролирует</h2>
           <p className="desc">HealthBite анализирует питание, воду и активность, чтобы давать мягкие, понятные рекомендации.</p>
           <div className="feature-grid">
             <div className="feature"><div className="feature-tag t-blue">Контекст дня</div><h4>Учитывает весь день, а не один приём пищи</h4><p>Советует не «есть меньше», а, например, добавить белка на завтрак.</p></div>
@@ -377,58 +424,222 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING */}
+      {/* ═══════════════════════════════════════
+          PRICING — новый блок тарифов
+      ═══════════════════════════════════════ */}
       <section id="pricing" className="section">
         <div className="container fade">
           <div className="label">Тарифы</div>
           <h2 className="title">Начни бесплатно — <span className="grad">расширяй по мере роста</span></h2>
+          <p className="desc">Без обязательств. Без автопродления. Отмена в любой момент.</p>
           <div className="pricing">
+
+            {/* СТАРТ */}
             <div className="plan">
+              <div className="badge blue">7 ДНЕЙ БЕСПЛАТНО</div>
               <h3>Старт</h3>
-              <div className="sub">Всё необходимое для начала</div>
+              <div className="sub">Пробный доступ — попробуй без карты</div>
               <div className="price">0 <small>₽</small></div>
-              <div className="per">навсегда бесплатно</div>
-              <ul>
-                <li>Дневник питания</li>
-                <li>Контроль воды</li>
-                <li>Шаги и активность</li>
-                <li>Основной экран</li>
+              <div className="per">бесплатно · 7 дней</div>
+              <ul className="plan-features">
+                <li className="check">Дневник питания — пробный доступ</li>
+                <li className="check">Водный баланс</li>
+                <li className="check">Отслеживание активности</li>
+                <li className="check">Отслеживание веса</li>
+                <li className="check">Список покупок</li>
+                {/* spacers для выравнивания с Про (8 пунктов) */}
+                <li className="spacer">—</li>
+                <li className="spacer">—</li>
+                <li className="spacer">—</li>
               </ul>
-              <Link href="/login" className="glow-btn plan-btn">Начать бесплатно</Link>
-              <div className="plan-note">Без карты</div>
+              <div className="plan-cta">
+                <Link href="/login" className="glow-btn plan-btn">Начать бесплатно</Link>
+                <div className="plan-note">Без карты. Без автопродления.</div>
+              </div>
             </div>
+
+            {/* ПРО */}
             <div className="plan pop">
-              <div className="badge green">Популярный</div>
+              <div className="badge green">ПОПУЛЯРНЫЙ</div>
               <h3>Про</h3>
-              <div className="sub">Для тех, кто хочет большего</div>
-              <div className="price">299 <small>₽/мес</small></div>
-              <div className="per">или 2 490 ₽/год</div>
-              <ul>
-                <li>Всё из Старта</li>
-                <li>ИИ‑рекомендации</li>
-                <li>Расширенная аналитика</li>
-                <li>Распознавание фото</li>
-                <li>История за 90 дней</li>
+              <div className="sub">Полный доступ ко всем функциям</div>
+              <div className="price">399 <small>₽/мес</small></div>
+              <div className="per">≈ 13 ₽/день</div>
+              <ul className="plan-features">
+                <li className="check">Всё из тарифа Старт — без ограничений</li>
+                <li className="check">Сканирование штрихкодов</li>
+                <li className="check">Контроль аллергенов</li>
+                <li className="check">Генерация рецептов HealthBite</li>
+                <li className="check">Рацион питания на неделю</li>
+                <li className="check">Распознавание блюд по фото 📸</li>
+                <li className="check">Аналитика за 30 дней</li>
+                <li className="check">Рекомендации HealthBite каждый день</li>
+                {/* spacers для выравнивания с Год (11 пунктов — здесь 8, нужно +3) */}
+                <li className="spacer">—</li>
+                <li className="spacer">—</li>
+                <li className="spacer">—</li>
               </ul>
-              <Link href="/login" className="glow-btn plan-btn">Попробовать 7 дней</Link>
-              <div className="plan-note">Отмена в любой момент</div>
+              <div className="plan-cta">
+                <Link href="/login" className="glow-btn plan-btn">Получить доступ — 399 ₽</Link>
+                <div className="plan-note">Отмена в любой момент. Без автопродления.</div>
+              </div>
             </div>
+
+            {/* ГОД */}
             <div className="plan best">
-              <div className="badge yellow">Максимум</div>
-              <h3>Премиум</h3>
-              <div className="sub">Полный контроль без ограничений</div>
-              <div className="price">599 <small>₽/мес</small></div>
-              <div className="per">или 4 990 ₽/год</div>
-              <ul>
-                <li>Всё из Про</li>
-                <li>Персональный план питания</li>
-                <li>Приоритетная поддержка</li>
-                <li>Ранний доступ к функциям</li>
-                <li>История без ограничений</li>
+              <div className="badge yellow">ВЫГОДНО · −27%</div>
+              <h3>Год</h3>
+              <div className="sub">Максимальная выгода</div>
+              <div className="price">3 490 <small>₽/год</small></div>
+              <div className="per">всего 10 ₽/день · вместо 4 788 ₽</div>
+              <ul className="plan-features">
+                <li className="check">Всё из тарифа Старт — без ограничений</li>
+                <li className="check">Сканирование штрихкодов</li>
+                <li className="check">Контроль аллергенов</li>
+                <li className="check">Генерация рецептов HealthBite</li>
+                <li className="check">Рацион питания на неделю</li>
+                <li className="check">Распознавание блюд по фото 📸</li>
+                <li className="check">Аналитика за 30 дней</li>
+                <li className="check">Рекомендации HealthBite каждый день</li>
+                <li className="check">История без ограничений</li>
+                <li className="check">Приоритетная поддержка</li>
+                <li className="check">Ранний доступ к новым функциям</li>
+                <li className="check">Закрытая группа в Telegram и на сайте</li>
               </ul>
-              <Link href="/login" className="glow-btn plan-btn">Выбрать Премиум</Link>
-              <div className="plan-note">Отмена в любой момент</div>
+              <div className="plan-cta">
+                <Link href="/login" className="glow-btn plan-btn">Получить доступ — 3 490 ₽/год</Link>
+                <div className="plan-note">Отмена в любой момент. Без автопродления.</div>
+              </div>
             </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════
+          FAQ — Всё, что хотелось уточнить
+      ═══════════════════════════════════════ */}
+      <section id="faq" className="section">
+        <div className="container fade">
+          <div className="label">Поддержка</div>
+          <h2 className="title">Всё, что хотелось уточнить</h2>
+          <p className="desc">Если остались вопросы — мы рядом.</p>
+
+          <div className="faq-list">
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Нужна ли карта для бесплатного периода?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Нет. Тариф «Старт» на 7 дней полностью бесплатный — карта не нужна, автоматического списания нет.
+                По окончании 7 дней приложение предложит выбрать платный тариф, но без принудительных ограничений.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Что доступно в дневнике питания на пробном периоде?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                В пробном периоде ты получаешь базовый доступ к дневнику питания:
+                можно <strong>добавлять блюда вручную</strong> и видеть суммарное КБЖУ за день.
+                Сканирование штрихкодов, распознавание по фото, генерация рецептов и рацион на неделю — доступны в тарифах «Про» и «Год».
+                Это позволяет познакомиться с приложением и понять, насколько оно подходит именно тебе.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Как работает распознавание блюд по фото?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Ты фотографируешь блюдо — HealthBite определяет состав и автоматически добавляет КБЖУ в дневник.
+                Функция доступна на тарифах «Про» и «Год». На пробном периоде блюдо можно добавить вручную.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Что такое рацион питания на неделю?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Это персональный план блюд на каждый день, который HealthBite составляет с учётом твоих целей,
+                аллергенов и предпочтений. Его можно редактировать под себя вручную — или дополнить уже готовыми
+                рекомендациями по питанию, которые у тебя есть. Доступен на тарифах «Про» и «Год».
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Мои данные сохранятся, если я отменю подписку?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Да. Все записи в дневнике, история веса и прогресс остаются в твоём аккаунте.
+                При истечении подписки пользоваться приложением в полном объёме не получится,
+                но при восстановлении — все предыдущие данные будут на месте.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Можно ли отменить подписку в любой момент?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Да, без штрафов и объяснений. Деньги за неиспользованный остаток периода не возвращаются —
+                подписка работает ровно до конца оплаченного срока. <strong>Автопродления нет.</strong>
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Считает ли приложение только калории или КБЖУ полностью?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Полностью КБЖУ: белки, жиры, углеводы и калории. На главном экране всё сразу —
+                с прогресс-барами и твоей дневной нормой.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Как HealthBite считает норму воды?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Норма рассчитывается на основе данных профиля: веса, роста и уровня активности.
+                При желании ты можешь установить свою цель вручную.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Где можно скачать приложение?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                HealthBite доступен в <strong>App Store</strong> и <strong>Google Play</strong>.
+                Найди приложение по названию «HealthBite» или перейди по ссылке на этой странице.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-q">
+                Синхронизируются ли данные между устройствами?
+                <div className="faq-arrow">▾</div>
+              </div>
+              <div className="faq-a">
+                Да. Данные хранятся в облаке и автоматически синхронизируются между всеми твоими устройствами.
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
