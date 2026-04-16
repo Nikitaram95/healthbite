@@ -25,29 +25,49 @@ interface Post {
 // ─── Категории ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: 'all',       label: 'Все'         },
-  { key: 'food',      label: 'Питание'     },
-  { key: 'mental',    label: 'Душевное состояние'  },
-  { key: 'sport',     label: 'Спорт'       },
-  { key: 'health',    label: 'Здоровье'    },
-  { key: 'lifestyle', label: 'Образ жизни' },
+  { key: 'all',       label: 'Все'                  },
+  { key: 'food',      label: 'Питание'              },
+  { key: 'mental',    label: 'Душевное состояние'   },
+  { key: 'health',    label: 'Здоровье'             },
+  { key: 'answer',    label: 'Ответы от тренера'    },
+  { key: 'question',  label: 'Вопросы тренеру'      },
 ];
+
+// ─── Авторы ───────────────────────────────────────────────────────────────────
+
+const AUTHORS: Record<string, string> = {
+  'healthbite': 'HealthBite',
+  'анна':       'Анна',
+  'валерия':    'Валерия',
+  'anna':       'Анна',
+  'valeria':    'Валерия',
+  'Анна':       'Анна',
+  'Валерия':    'Валерия',
+  'HealthBite': 'HealthBite',
+};
+
+function resolveAuthorName(raw: string): string {
+  if (!raw) return 'HealthBite';
+  return AUTHORS[raw] ?? AUTHORS[raw.toLowerCase()] ?? raw;
+}
+
+// ─── Цвета категорий ──────────────────────────────────────────────────────────
 
 const CAT_COLORS: Record<string, string> = {
   food:      'rgba(255,179,71,.18)',
   mental:    'rgba(239,68,68,.18)',
-  sport:     'rgba(0,229,255,.18)',
   health:    'rgba(16,185,129,.18)',
-  lifestyle: 'rgba(122,57,187,.18)',
+  answer:    'rgba(0,162,255,.18)',
+  question:  'rgba(122,57,187,.18)',
   '':        'rgba(255,255,255,.06)',
 };
 
 const CAT_TEXT: Record<string, string> = {
   food:      '#ffd08f',
   mental:    '#ff8e8e',
-  sport:     '#7beeff',
   health:    '#6ce9c1',
-  lifestyle: '#c79df5',
+  answer:    '#7ecfff',
+  question:  '#c79df5',
   '':        '#8aa3bf',
 };
 
@@ -116,17 +136,14 @@ async function toggleLike(
 async function sendView(postid: string): Promise<void> {
   try {
     await fetch(`${API}/post/${postid}/view`, { method: 'POST' });
-  } catch {
-    // тихо
-  }
+  } catch { /* тихо */ }
 }
 
-// ─── Аватар ───────────────────────────────────────────────────────────────────
+// ─── Аватар пользователя ──────────────────────────────────────────────────────
 
 function UserAvatar({ user, size = 36 }: { user: any; size?: number }) {
   const letter    = (user.name || user.phone || '?').slice(0, 1).toUpperCase();
   const hasAvatar = user.avatarurl && user.avatarurl !== '';
-
   return (
     <div style={{ position: 'relative', width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
       {hasAvatar && (
@@ -152,6 +169,29 @@ function UserAvatar({ user, size = 36 }: { user: any; size?: number }) {
   );
 }
 
+// ─── Аватар автора поста ──────────────────────────────────────────────────────
+
+const AUTHOR_COLORS: Record<string, { bg: string; text: string }> = {
+  'HealthBite': { bg: 'rgba(0,162,255,.15)',   text: '#7ecfff' },
+  'Анна':       { bg: 'rgba(16,185,129,.15)',  text: '#6ce9c1' },
+  'Валерия':    { bg: 'rgba(239,68,68,.15)',   text: '#ff8e8e' },
+};
+
+function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
+  const resolved = resolveAuthorName(name);
+  const colors   = AUTHOR_COLORS[resolved] ?? { bg: 'rgba(0,162,255,.15)', text: '#7ecfff' };
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: colors.bg, border: `1px solid ${colors.text}44`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.38, fontWeight: 700, color: colors.text,
+    }}>
+      {resolved.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
 // ─── Скелетон ─────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -168,7 +208,7 @@ function SkeletonCard() {
         </div>
         <div style={{ height: '0.85em', width: '80%', background: 'rgba(255,255,255,.07)', borderRadius: 4, marginBottom: 8 }} />
         <div style={{ height: '0.75em', width: '100%', background: 'rgba(255,255,255,.05)', borderRadius: 4, marginBottom: 6 }} />
-        <div style={{ height: '0.75em', width: '60%', background: 'rgba(255,255,255,.05)', borderRadius: 4 }} />
+        <div style={{ height: '0.75em', width: '60%',  background: 'rgba(255,255,255,.05)', borderRadius: 4 }} />
       </div>
     </div>
   );
@@ -186,15 +226,16 @@ interface PostCardProps {
 }
 
 function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: PostCardProps) {
-  const [popping,    setPopping]    = useState(false);
-  const [imgError,   setImgError]   = useState(false);
+  const [popping,      setPopping]      = useState(false);
+  const [imgError,     setImgError]     = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const cardRef   = useRef<HTMLElement>(null);
   const viewedRef = useRef(false);
 
-  const relTime  = getRelativeTime(post.createdat);
-  const catLabel = getCategoryLabel(post.categoryid);
-  const cat      = getCatStyle(post.categoryid);
+  const relTime      = getRelativeTime(post.createdat);
+  const catLabel     = getCategoryLabel(post.categoryid);
+  const cat          = getCatStyle(post.categoryid);
+  const authorName   = resolveAuthorName(post.author);
 
   useEffect(() => {
     const el = cardRef.current;
@@ -228,6 +269,8 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
 
   return (
     <article ref={cardRef} style={{ ...s.card, cursor: 'pointer' }} onClick={() => onNavigate(post.postid)}>
+
+      {/* Лайтбокс */}
       {lightboxOpen && post.mediaurl && (
         <div
           onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
@@ -260,14 +303,12 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
         </div>
       )}
 
+      {/* Медиа */}
       {post.mediaurl && !imgError && (
         <div
           style={{ ...s.mediaWrap, cursor: post.type !== 'video' ? 'zoom-in' : 'default' }}
           onClick={(e) => {
-            if (post.type !== 'video') {
-              e.stopPropagation();
-              setLightboxOpen(true);
-            }
+            if (post.type !== 'video') { e.stopPropagation(); setLightboxOpen(true); }
           }}
         >
           {post.type === 'video' ? (
@@ -290,12 +331,11 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
       )}
 
       <div style={s.cardBody}>
+        {/* Автор */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={s.authorAvatar}>
-            {(post.author || '?').slice(0, 1).toUpperCase()}
-          </div>
+          <AuthorAvatar name={post.author} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={s.authorName}>@{post.author}</div>
+            <div style={s.authorName}>{authorName}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <span style={{ ...s.catBadge, background: cat.bg, color: cat.text }}>{catLabel}</span>
               {relTime && (
@@ -311,6 +351,7 @@ function PostCard({ post, userId, onLike, onNavigate, onComments, onView }: Post
         <p style={s.cardTitle}>{post.title}</p>
         {post.description && <p style={s.cardDesc}>{post.description}</p>}
 
+        {/* Футер */}
         <div style={s.cardFooter}>
           <button
             className={popping ? 'like-pop' : ''}
@@ -396,12 +437,25 @@ export default function FeedScreen() {
       const next = new Set(prev); next.add(postid); return next;
     });
     if (!locked) return;
-    setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 } : p));
+    setPosts((prev) => prev.map((p) => p.postid === postid
+      ? { ...p, liked: !currentLiked, likes: currentLiked ? p.likes - 1 : p.likes + 1 }
+      : p
+    ));
     try {
       const result = await toggleLike(postid, userId, currentLiked);
-      setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, likes: typeof result.likes === 'number' ? result.likes : p.likes, liked: typeof result.liked === 'boolean' ? result.liked : p.liked } : p));
+      setPosts((prev) => prev.map((p) => p.postid === postid
+        ? {
+            ...p,
+            likes: typeof result.likes === 'number' ? result.likes : p.likes,
+            liked: typeof result.liked === 'boolean' ? result.liked : p.liked,
+          }
+        : p
+      ));
     } catch {
-      setPosts((prev) => prev.map((p) => p.postid === postid ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 } : p));
+      setPosts((prev) => prev.map((p) => p.postid === postid
+        ? { ...p, liked: currentLiked, likes: currentLiked ? p.likes + 1 : p.likes - 1 }
+        : p
+      ));
     } finally {
       setLikePending((prev) => { const next = new Set(prev); next.delete(postid); return next; });
     }
@@ -416,7 +470,7 @@ export default function FeedScreen() {
     ? posts.filter((p) =>
         (p.title || '').toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q) ||
-        (p.author || '').toLowerCase().includes(q)
+        resolveAuthorName(p.author).toLowerCase().includes(q)
       )
     : posts;
 
@@ -428,17 +482,9 @@ export default function FeedScreen() {
 
         {/* ── HEADER ── */}
         <header style={s.header}>
-
-          {/* Верхняя строка: [пусто] [логотип по центру] [профиль] */}
           <div style={s.headerTop}>
-
-            {/* Левая пустышка для баланса */}
             <div style={{ width: 44, flexShrink: 0 }} />
-
-            {/* Центр — логотип */}
             <span style={s.logoText}>HealthBite</span>
-
-            {/* Правый блок */}
             {user ? (
               <button onClick={handleProfile} style={s.profileBtn} aria-label="Профиль">
                 <UserAvatar user={user} size={32} />
@@ -505,7 +551,6 @@ export default function FeedScreen() {
               {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           )}
-
           {!loading && error && (
             <div style={s.center}>
               <p style={{ color: '#ff8e8e', marginBottom: 12 }}>{error}</p>
@@ -514,7 +559,6 @@ export default function FeedScreen() {
               </button>
             </div>
           )}
-
           {!loading && !error && filteredPosts.length === 0 && (
             <div style={{ ...s.center, flexDirection: 'column', gap: '1rem' }}>
               <div style={s.emptyIcon}>
@@ -530,7 +574,6 @@ export default function FeedScreen() {
               </p>
             </div>
           )}
-
           {!loading && !error && filteredPosts.length > 0 && (
             <div style={s.grid}>
               {filteredPosts.map((post) => (
@@ -590,29 +633,19 @@ const s: Record<string, React.CSSProperties> = {
   headerTop: {
     maxWidth: 700, margin: '0 auto',
     padding: '12px 16px 10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
   },
   logoText: {
-    fontFamily: 'Orbitron, sans-serif',
-    fontWeight: 800,
-    fontSize: '1.125rem',
+    fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.125rem',
     background: 'linear-gradient(90deg, #00a2ff, #e0f4ff)',
-    WebkitBackgroundClip: 'text',
-    backgroundClip: 'text',
-    color: 'transparent',
-    letterSpacing: '.04em',
-    flexShrink: 0,
+    WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+    letterSpacing: '.04em', flexShrink: 0,
   },
   profileBtn: {
     display: 'flex', alignItems: 'center', gap: 8,
-    background: 'rgba(0,162,255,.07)',
-    border: '1px solid rgba(0,162,255,.18)',
+    background: 'rgba(0,162,255,.07)', border: '1px solid rgba(0,162,255,.18)',
     borderRadius: 999, padding: '5px 10px 5px 5px',
-    cursor: 'pointer', transition: 'all .18s ease',
-    flexShrink: 0,
+    cursor: 'pointer', transition: 'all .18s ease', flexShrink: 0,
   },
   profileInfo: { textAlign: 'left' },
   profileName: {
@@ -621,25 +654,19 @@ const s: Record<string, React.CSSProperties> = {
   },
   profileHint: { fontSize: '.65rem', color: '#5090b0' },
   loginLink: {
-    padding: '7px 14px',
-    background: 'rgba(0,162,255,.1)',
-    border: '1px solid rgba(0,162,255,.25)',
-    borderRadius: 999, color: '#7ecfff',
-    textDecoration: 'none', fontWeight: 600,
-    fontSize: '.8125rem', cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
+    padding: '7px 14px', background: 'rgba(0,162,255,.1)',
+    border: '1px solid rgba(0,162,255,.25)', borderRadius: 999, color: '#7ecfff',
+    textDecoration: 'none', fontWeight: 600, fontSize: '.8125rem',
+    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
   },
   searchWrap: {
     display: 'flex', alignItems: 'center', gap: 8,
-    background: 'rgba(255,255,255,.05)',
-    border: '1px solid rgba(0,162,255,.12)',
+    background: 'rgba(255,255,255,.05)', border: '1px solid rgba(0,162,255,.12)',
     borderRadius: 999, padding: '8px 14px',
   },
   searchInput: {
     flex: 1, background: 'none', border: 'none', outline: 'none',
-    fontSize: '.9rem', color: '#dceaff',
-    fontFamily: '"Exo 2", sans-serif',
+    fontSize: '.9rem', color: '#dceaff', fontFamily: '"Exo 2", sans-serif',
   },
   catsWrap: { overflowX: 'auto', scrollbarWidth: 'none' },
   catsInner: {
@@ -647,31 +674,21 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', gap: '.5rem', height: 48, alignItems: 'center',
   },
   catChip: {
-    padding: '.3rem .875rem', borderRadius: 999,
-    border: '1px solid rgba(255,255,255,.08)',
-    background: 'rgba(255,255,255,.04)',
-    fontSize: '.8125rem', color: '#8aa3bf', cursor: 'pointer',
-    whiteSpace: 'nowrap', fontWeight: 600,
-    fontFamily: '"Exo 2", sans-serif',
-    transition: 'all .18s ease',
+    padding: '.3rem .875rem', borderRadius: 999, border: '1px solid rgba(255,255,255,.08)',
+    background: 'rgba(255,255,255,.04)', fontSize: '.8125rem', color: '#8aa3bf',
+    cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600,
+    fontFamily: '"Exo 2", sans-serif', transition: 'all .18s ease',
   },
   catChipActive: {
-    background: 'rgba(0,162,255,.14)',
-    borderColor: 'rgba(0,162,255,.4)',
-    color: '#fff',
-    boxShadow: '0 0 14px rgba(0,162,255,.15) inset',
+    background: 'rgba(0,162,255,.14)', borderColor: 'rgba(0,162,255,.4)',
+    color: '#fff', boxShadow: '0 0 14px rgba(0,162,255,.15) inset',
   },
-  main: {
-    maxWidth: 700, margin: '0 auto',
-    padding: '1.25rem 1rem 5rem',
-    position: 'relative', zIndex: 1,
-  },
+  main: { maxWidth: 700, margin: '0 auto', padding: '1.25rem 1rem 5rem', position: 'relative', zIndex: 1 },
   grid: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '5rem 0' },
   emptyIcon: {
     width: 72, height: 72, borderRadius: 20,
-    background: 'rgba(0,162,255,.08)',
-    border: '1px solid rgba(0,162,255,.2)',
+    background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   retryBtn: {
@@ -682,65 +699,45 @@ const s: Record<string, React.CSSProperties> = {
   },
   card: {
     background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))',
-    border: '1px solid rgba(255,255,255,.07)',
-    borderRadius: 18, overflow: 'hidden',
-    boxShadow: '0 8px 32px rgba(0,0,0,.35)',
-    transition: 'border-color .18s ease, box-shadow .18s ease',
+    border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden',
+    boxShadow: '0 8px 32px rgba(0,0,0,.35)', transition: 'border-color .18s ease, box-shadow .18s ease',
   },
-  mediaWrap: {
-    position: 'relative', aspectRatio: '16/9',
-    overflow: 'hidden', background: 'rgba(0,0,0,.3)',
-  },
+  mediaWrap: { position: 'relative', aspectRatio: '16/9', overflow: 'hidden', background: 'rgba(0,0,0,.3)' },
   mediaOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 48,
-    background: 'linear-gradient(transparent, rgba(9,17,29,.85))',
-    pointerEvents: 'none',
+    background: 'linear-gradient(transparent, rgba(9,17,29,.85))', pointerEvents: 'none',
   },
   cardBody: { padding: '1rem 1.125rem 1.125rem' },
-  authorAvatar: {
-    width: 36, height: 36, borderRadius: '50%',
-    background: 'rgba(0,162,255,.15)',
-    border: '1px solid rgba(0,162,255,.25)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '.8125rem', fontWeight: 700, color: '#7ecfff', flexShrink: 0,
-  },
   authorName: {
     fontSize: '.875rem', fontWeight: 600, color: '#dceaff',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
   catBadge: {
-    display: 'inline-block', padding: '.15rem .6rem',
-    borderRadius: 999, fontSize: '.6875rem', fontWeight: 700,
-    letterSpacing: '.04em', textTransform: 'uppercase' as const,
+    display: 'inline-block', padding: '.15rem .6rem', borderRadius: 999,
+    fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em',
+    textTransform: 'uppercase' as const,
   },
   cardDate: { fontSize: '.75rem', color: '#8aa3bf' },
   cardTitle: {
-    fontFamily: 'Orbitron, sans-serif',
-    fontSize: '.9375rem', fontWeight: 700, color: '#dceaff',
-    lineHeight: 1.35, marginBottom: 8, overflow: 'hidden',
+    fontFamily: 'Orbitron, sans-serif', fontSize: '.9375rem', fontWeight: 700,
+    color: '#dceaff', lineHeight: 1.35, marginBottom: 8, overflow: 'hidden',
     display: '-webkit-box' as unknown as React.CSSProperties['display'],
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical' as const,
+    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
   },
   cardDesc: {
-    fontSize: '.8125rem', color: '#8aa3bf',
-    lineHeight: 1.6, marginBottom: 12, overflow: 'hidden',
+    fontSize: '.8125rem', color: '#8aa3bf', lineHeight: 1.6, marginBottom: 12, overflow: 'hidden',
     display: '-webkit-box' as unknown as React.CSSProperties['display'],
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical' as const,
+    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
   },
   cardFooter: {
     display: 'flex', alignItems: 'center', gap: '.5rem',
-    paddingTop: '.75rem',
-    borderTop: '1px solid rgba(255,255,255,.06)',
+    paddingTop: '.75rem', borderTop: '1px solid rgba(255,255,255,.06)',
   },
   likeBtn: {
     display: 'flex', alignItems: 'center', gap: '.3rem',
-    background: 'rgba(255,255,255,.04)',
-    border: '1px solid rgba(255,255,255,.1)',
-    borderRadius: 999, padding: '.3rem .7rem',
-    cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf',
-    fontFamily: '"Exo 2", sans-serif',
+    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
+    borderRadius: 999, padding: '.3rem .7rem', cursor: 'pointer',
+    fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif',
     transition: 'all .18s ease',
   },
   likeBtnActive: {
@@ -750,15 +747,12 @@ const s: Record<string, React.CSSProperties> = {
   commentBtn: {
     display: 'flex', alignItems: 'center', gap: '.3rem',
     background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: '.8125rem', color: '#8aa3bf',
-    fontFamily: '"Exo 2", sans-serif',
-    padding: '.3rem .5rem',
-    transition: 'color .18s ease',
+    fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif',
+    padding: '.3rem .5rem', transition: 'color .18s ease',
   },
   viewsCount: {
     display: 'flex', alignItems: 'center', gap: '.3rem',
-    fontSize: '.8125rem', color: '#4a6a8a',
-    marginLeft: 'auto', padding: '.3rem .5rem',
-    fontVariantNumeric: 'tabular-nums',
+    fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto',
+    padding: '.3rem .5rem', fontVariantNumeric: 'tabular-nums',
   },
 };

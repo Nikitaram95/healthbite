@@ -190,7 +190,7 @@ export default function LoginClient() {
 
 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 36 }}>
   <img
-    src="https://storage.yandexcloud.net/healtbite/images/Group%20352%20(1).png"
+    src="https://storage.yandexcloud.net/healtbite-storage/images/Group%20352%20(1)%20(1).png"
     alt="HealthBite"
     width={125}
     height={125}

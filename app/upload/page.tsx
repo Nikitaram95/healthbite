@@ -7,15 +7,15 @@ import { useAuth } from '@/hooks/useAuth';
 const CATEGORIES = [
   { id: 'food',      label: 'Питание' },
   { id: 'mental',    label: 'Душевное состояние' },
-  { id: 'sport',     label: 'Спорт' },
   { id: 'health',    label: 'Здоровье' },
-  { id: 'lifestyle', label: 'Образ жизни' },
+  { id: 'answer', label: 'Ответы от тренера' },
+  { id: 'question', label: 'Вопросы тренеру' },
 ];
 
 const AUTHORS = [
   { id: 'healthbite', label: 'HealthBite' },
-  { id: 'author1',    label: 'Девочка 1' },
-  { id: 'author2',    label: 'Девочка 2' },
+  { id: 'author1',    label: 'Анна' },
+  { id: 'author2',    label: 'Валерия' },
 ];
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';

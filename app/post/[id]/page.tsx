@@ -32,34 +32,59 @@ interface Comment {
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
+// ─── Категории ────────────────────────────────────────────────────────────────
+
 const CATEGORIES: Record<string, string> = {
-  ai:        'AI',
-  food:      'Питание',
-  mental:    'Ментальное',
-  sport:     'Спорт',
-  health:    'Здоровье',
-  lifestyle: 'Образ жизни',
+  food:     'Питание',
+  mental:   'Душевное состояние',
+  health:   'Здоровье',
+  answer:   'Ответы от тренера',
+  question: 'Вопросы тренеру',
 };
 
 const CAT_COLORS: Record<string, string> = {
-  ai:        'rgba(122,57,187,.18)',
-  food:      'rgba(255,179,71,.18)',
-  mental:    'rgba(239,68,68,.18)',
-  sport:     'rgba(0,229,255,.18)',
-  health:    'rgba(16,185,129,.18)',
-  lifestyle: 'rgba(122,57,187,.18)',
+  food:     'rgba(255,179,71,.18)',
+  mental:   'rgba(239,68,68,.18)',
+  health:   'rgba(16,185,129,.18)',
+  answer:   'rgba(0,162,255,.18)',
+  question: 'rgba(122,57,187,.18)',
 };
 
 const CAT_TEXT: Record<string, string> = {
-  ai:        '#c79df5',
-  food:      '#ffd08f',
-  mental:    '#ff8e8e',
-  sport:     '#7beeff',
-  health:    '#6ce9c1',
-  lifestyle: '#c79df5',
+  food:     '#ffd08f',
+  mental:   '#ff8e8e',
+  health:   '#6ce9c1',
+  answer:   '#7ecfff',
+  question: '#c79df5',
 };
 
 function getCategoryLabel(key: string) { return CATEGORIES[key] ?? key; }
+
+// ─── Авторы ───────────────────────────────────────────────────────────────────
+
+const AUTHORS_MAP: Record<string, string> = {
+  'healthbite': 'HealthBite',
+  'HealthBite': 'HealthBite',
+  'анна':       'Анна',
+  'Анна':       'Анна',
+  'anna':       'Анна',
+  'валерия':    'Валерия',
+  'Валерия':    'Валерия',
+  'valeria':    'Валерия',
+};
+
+function resolveAuthorName(raw: string): string {
+  if (!raw) return 'HealthBite';
+  return AUTHORS_MAP[raw] ?? AUTHORS_MAP[raw.toLowerCase()] ?? raw;
+}
+
+const AUTHOR_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  'HealthBite': { bg: 'rgba(0,162,255,.15)',  border: 'rgba(0,162,255,.3)',  text: '#7ecfff' },
+  'Анна':       { bg: 'rgba(16,185,129,.15)', border: 'rgba(16,185,129,.3)', text: '#6ce9c1' },
+  'Валерия':    { bg: 'rgba(239,68,68,.15)',  border: 'rgba(239,68,68,.3)',  text: '#ff8e8e' },
+};
+
+// ─── Утилиты времени ──────────────────────────────────────────────────────────
 
 function parseTimestamp(raw: string | number | null | undefined): number {
   if (raw === null || raw === undefined || raw === '') return 0;
@@ -92,18 +117,19 @@ function getRelativeTime(raw: string | number | null | undefined): string {
   return `${Math.floor(months / 12)} г назад`;
 }
 
-// ─── Аватар ───────────────────────────────────────────────────────────────────
+// ─── Аватар автора ────────────────────────────────────────────────────────────
 
 function AuthorAvatar({ name, size = 36 }: { name: string; size?: number }) {
-  const letter = (name || '?').slice(0, 1).toUpperCase();
+  const resolved = resolveAuthorName(name);
+  const colors   = AUTHOR_COLORS[resolved] ?? AUTHOR_COLORS['HealthBite'];
   return (
-    <div aria-label={name} style={{
-      width: size, height: size, borderRadius: '50%',
-      background: 'rgba(0,162,255,.15)', border: '1px solid rgba(0,162,255,.25)',
+    <div aria-label={resolved} style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: colors.bg, border: `1px solid ${colors.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#7ecfff', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
+      color: colors.text, fontSize: size * 0.38, fontWeight: 700,
     }}>
-      {letter}
+      {resolved.slice(0, 1).toUpperCase()}
     </div>
   );
 }
@@ -148,11 +174,9 @@ function SkeletonComments() {
   );
 }
 
-// ─── Лайтбокс (только для изображений) ───────────────────────────────────────
+// ─── Лайтбокс ────────────────────────────────────────────────────────────────
 
-function ImageLightbox({
-  src, alt, onClose,
-}: { src: string; alt: string; onClose: () => void }) {
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -170,15 +194,13 @@ function ImageLightbox({
         position: 'fixed', inset: 0, zIndex: 9999,
         background: 'rgba(0,0,0,.93)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16,
-        animation: 'lbFadeIn .18s ease',
+        padding: 16, animation: 'lbFadeIn .18s ease',
       }}
     >
       <style>{`
         @keyframes lbFadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes lbZoom   { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
       `}</style>
-
       <button
         onClick={onClose}
         aria-label="Закрыть"
@@ -186,37 +208,23 @@ function ImageLightbox({
           position: 'absolute', top: 16, right: 16,
           width: 40, height: 40, borderRadius: '50%',
           background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.18)',
-          color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer',
+          color: '#fff', fontSize: 22, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1, transition: 'background .15s',
         }}
         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.2)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,.1)')}
       >×</button>
-
-      <div style={{
-        position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-        fontSize: 12, color: 'rgba(255,255,255,.28)', letterSpacing: '.04em',
-        pointerEvents: 'none',
-      }}>
+      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontSize: 12, color: 'rgba(255,255,255,.28)', pointerEvents: 'none' }}>
         ESC или тап на фон — закрыть
       </div>
-
       <div
         onClick={e => e.stopPropagation()}
         style={{ animation: 'lbZoom .2s ease', maxWidth: '100%', maxHeight: '100%', display: 'flex' }}
       >
         <img
-          src={src}
-          alt={alt}
-          style={{
-            display: 'block',
-            maxWidth: 'min(960px, 95vw)',
-            maxHeight: '90dvh',
-            borderRadius: 14,
-            objectFit: 'contain',
-            boxShadow: '0 0 80px rgba(0,0,0,.8)',
-          }}
+          src={src} alt={alt}
+          style={{ display: 'block', maxWidth: 'min(960px, 95vw)', maxHeight: '90dvh', borderRadius: 14, objectFit: 'contain', boxShadow: '0 0 80px rgba(0,0,0,.8)' }}
         />
       </div>
     </div>
@@ -241,8 +249,6 @@ export default function PostPage() {
   const [imgError,        setImgError]        = useState(false);
   const [imgOpen,         setImgOpen]         = useState(false);
 
-  // ─── Загрузка поста ────────────────────────────────────────────────────
-
   const loadPost = useCallback(async () => {
     if (!id) return;
     setLoadingPost(true);
@@ -258,8 +264,6 @@ export default function PostPage() {
       setLoadingPost(false);
     }
   }, [id, user?.id, router]);
-
-  // ─── Загрузка комментариев ─────────────────────────────────────────────
 
   const loadComments = useCallback(async () => {
     if (!id) return;
@@ -278,8 +282,6 @@ export default function PostPage() {
   }, [id]);
 
   useEffect(() => { loadPost(); loadComments(); }, [loadPost, loadComments]);
-
-  // ─── Лайк ─────────────────────────────────────────────────────────────
 
   const handleLike = useCallback(async () => {
     if (!post || !user?.id || likePending) return;
@@ -311,8 +313,6 @@ export default function PostPage() {
     }
   }, [post, user?.id, likePending]);
 
-  // ─── Отправка комментария ──────────────────────────────────────────────
-
   const handleComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !id) return;
@@ -337,8 +337,6 @@ export default function PostPage() {
       setSendingComment(false);
     }
   }, [commentText, id, loadComments, getToken]);
-
-  // ─── Скелетон загрузки ────────────────────────────────────────────────
 
   if (loadingPost) {
     return (
@@ -369,26 +367,20 @@ export default function PostPage() {
     );
   }
 
-  const relTime  = getRelativeTime(post.createdat);
-  const catLabel = getCategoryLabel(post.categoryid);
-  const catBg    = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
-  const catTxt   = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
+  const relTime      = getRelativeTime(post.createdat);
+  const catLabel     = getCategoryLabel(post.categoryid);
+  const catBg        = CAT_COLORS[post.categoryid] ?? 'rgba(255,255,255,.06)';
+  const catTxt       = CAT_TEXT[post.categoryid]   ?? '#8aa3bf';
+  const authorName   = resolveAuthorName(post.author);
   const commenterName = user?.name || '';
-
-  // ─── Рендер ───────────────────────────────────────────────────────────
 
   return (
     <div style={s.page}>
       <style>{globalStyles}</style>
       <div style={s.gridBg} />
 
-      {/* Лайтбокс только для картинок */}
       {imgOpen && post.mediaurl && post.type !== 'video' && (
-        <ImageLightbox
-          src={post.mediaurl}
-          alt={post.title}
-          onClose={() => setImgOpen(false)}
-        />
+        <ImageLightbox src={post.mediaurl} alt={post.title} onClose={() => setImgOpen(false)} />
       )}
 
       <header style={s.header}>
@@ -400,39 +392,25 @@ export default function PostPage() {
       </header>
 
       <main style={s.main}>
-
-        {/* Пост */}
         <article style={{ ...s.card, marginBottom: 16 }}>
 
           {/* Медиа */}
           {post.mediaurl && !imgError && (
             post.type === 'video' ? (
-              // ── Видео: нативный плеер прямо в карточке (как в ленте) ──
               <div style={{ position: 'relative', background: '#000' }}>
                 <video
-                  src={post.mediaurl}
-                  controls
-                  playsInline
-                  muted
-                  style={{
-                    width: '100%',
-                    display: 'block',
-                    maxHeight: 440,
-                    objectFit: 'cover',
-                    background: '#000',
-                  }}
+                  src={post.mediaurl} controls playsInline muted
+                  style={{ width: '100%', display: 'block', maxHeight: 440, objectFit: 'cover', background: '#000' }}
                 />
                 <div style={s.mediaOverlay} />
               </div>
             ) : (
-              // ── Картинка: клик открывает лайтбокс ──
               <div
                 style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', cursor: 'zoom-in' }}
                 onClick={() => setImgOpen(true)}
               >
                 <img
-                  src={post.mediaurl}
-                  alt={post.title}
+                  src={post.mediaurl} alt={post.title}
                   onError={() => setImgError(true)}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform .3s ease' }}
                   onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.02)')}
@@ -443,8 +421,7 @@ export default function PostPage() {
                   position: 'absolute', bottom: 12, right: 12,
                   background: 'rgba(0,0,0,.48)', borderRadius: 8, padding: '5px 8px',
                   display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, color: 'rgba(255,255,255,.55)',
-                  backdropFilter: 'blur(4px)',
+                  fontSize: 11, color: 'rgba(255,255,255,.55)', backdropFilter: 'blur(4px)',
                 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8"/>
@@ -464,7 +441,7 @@ export default function PostPage() {
               <AuthorAvatar name={post.author} size={40} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '.9rem', fontWeight: 700, color: '#dceaff', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {post.author}
+                  {authorName}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ ...s.catBadge, background: catBg, color: catTxt }}>{catLabel}</span>
@@ -575,7 +552,7 @@ export default function PostPage() {
             </div>
           )}
 
-          {/* Список */}
+          {/* Список комментариев */}
           {loadingComments ? <SkeletonComments /> : comments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: '#8aa3bf' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
@@ -589,7 +566,9 @@ export default function PostPage() {
                   <AuthorAvatar name={c.author} size={32} />
                   <div style={{ flex: 1, background: 'rgba(255,255,255,.04)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>{c.author}</span>
+                      <span style={{ fontSize: '.875rem', fontWeight: 700, color: '#dceaff' }}>
+                        {resolveAuthorName(c.author)}
+                      </span>
                       {getRelativeTime(c.createdat) && (
                         <span style={{ fontSize: '.75rem', color: '#8aa3bf' }}>{getRelativeTime(c.createdat)}</span>
                       )}
@@ -612,8 +591,7 @@ export const dynamic = 'force-dynamic';
 
 function ArrowIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="19" y1="12" x2="5" y2="12"/>
       <polyline points="12 19 5 12 12 5"/>
     </svg>
@@ -622,8 +600,7 @@ function ArrowIcon() {
 
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
   );
@@ -647,18 +624,18 @@ const globalStyles = `
 `;
 
 const s: Record<string, React.CSSProperties> = {
-  page:           { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
-  gridBg:         { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
-  header:         { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
-  headerInner:    { maxWidth: 720, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo:           { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', textDecoration: 'none' },
-  backBtn:        { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
-  main:           { maxWidth: 720, margin: '0 auto', padding: '16px 16px 48px', position: 'relative', zIndex: 1 },
-  card:           { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
-  mediaOverlay:   { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, rgba(9,17,29,.9))', pointerEvents: 'none' },
-  catBadge:       { display: 'inline-block', padding: '.15rem .625rem', borderRadius: 999, fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' as const },
-  actionBtn:      { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '.35rem .75rem', cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif', fontWeight: 500, transition: 'all .18s ease' },
+  page:         { minHeight: '100dvh', background: 'radial-gradient(circle at 20% 0, rgba(0,162,255,.1) 0, transparent 35%), radial-gradient(circle at 80% 20%, rgba(0,229,255,.07) 0, transparent 30%), linear-gradient(180deg, #0a1220 0%, #0d1623 35%, #09111a 100%)', fontFamily: '"Exo 2", system-ui, sans-serif', color: '#f4f8ff', position: 'relative' },
+  gridBg:       { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundImage: 'linear-gradient(rgba(0,162,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,162,255,.035) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 80%, transparent)' },
+  header:       { background: 'rgba(9,17,29,.82)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(0,162,255,.1)', position: 'sticky', top: 0, zIndex: 100 },
+  headerInner:  { maxWidth: 720, margin: '0 auto', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo:         { fontFamily: 'Orbitron, sans-serif', fontWeight: 800, fontSize: '1.0625rem', background: 'linear-gradient(90deg, #00a2ff, #fff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', textDecoration: 'none' },
+  backBtn:      { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: 'rgba(0,162,255,.08)', border: '1px solid rgba(0,162,255,.2)', color: '#7ecfff', cursor: 'pointer' },
+  main:         { maxWidth: 720, margin: '0 auto', padding: '16px 16px 48px', position: 'relative', zIndex: 1 },
+  card:         { background: 'linear-gradient(180deg, rgba(16,33,59,.97), rgba(13,24,43,.99))', border: '1px solid rgba(255,255,255,.07)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.35)' },
+  mediaOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, rgba(9,17,29,.9))', pointerEvents: 'none' },
+  catBadge:     { display: 'inline-block', padding: '.15rem .625rem', borderRadius: 999, fontSize: '.6875rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' as const },
+  actionBtn:    { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '.35rem .75rem', cursor: 'pointer', fontSize: '.8125rem', color: '#8aa3bf', fontFamily: '"Exo 2", sans-serif', fontWeight: 500, transition: 'all .18s ease' },
   actionBtnLiked: { borderColor: 'rgba(239,68,68,.4)', color: '#ff8e8e', background: 'rgba(239,68,68,.1)', boxShadow: '0 0 10px rgba(239,68,68,.2)' },
-  viewsCount:     { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' },
-  btnPrimary:     { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))', border: '1px solid rgba(0,162,255,.35)', color: '#fff', borderRadius: 999, fontSize: '.875rem', fontWeight: 700, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)', cursor: 'pointer' },
+  viewsCount:   { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.8125rem', color: '#4a6a8a', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' },
+  btnPrimary:   { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(180deg, rgba(0,162,255,.2), rgba(0,162,255,.1))', border: '1px solid rgba(0,162,255,.35)', color: '#fff', borderRadius: 999, fontSize: '.875rem', fontWeight: 700, fontFamily: '"Exo 2", sans-serif', boxShadow: '0 0 14px rgba(0,162,255,.2)', cursor: 'pointer' },
 };
